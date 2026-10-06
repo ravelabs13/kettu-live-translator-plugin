@@ -117,6 +117,7 @@ async function translatePolish(text, targetLanguage) {
   return protectedText.restore(translatedChunks.join(""));
 }const settings = plugin.storage;
 let ChatInputGuardWrapper;
+let ChatInput;
 let Messaging;
 let SelectedChannelStore;
 let ChannelStore;
@@ -134,6 +135,11 @@ function resolveDiscordModules() {
     ChatInputGuardWrapper = metro.findByName("ChatInputGuardWrapper", false);
   } catch (error) {
     _vendetta.logger.error("Chat input module lookup failed", error);
+  }
+  try {
+    ChatInput = metro.findByName("ChatInput", false);
+  } catch (error) {
+    _vendetta.logger.error("ChatInput module lookup failed", error);
   }
   try {
     Messaging = metro.findByProps("sendMessage", "editMessage") ?? metro.findByProps("sendMessage");
@@ -166,12 +172,36 @@ function channelLabel(id) {
   const channel = ChannelStore?.getChannel?.(id);
   return channel?.name ? `#${channel.name}` : id;
 }
+function setComposerText(id, text, inputProps) {
+  try {
+    if (ChatInput?.props && typeof ChatInput.props === "object") {
+      ChatInput.props.text = text;
+      return true;
+    }
+  } catch (error) {
+    _vendetta.logger.error("ChatInput text update failed", error);
+  }
+
+  const fallback = inputProps ?? inputByChannel.get(id);
+
+  if (typeof fallback?.handleTextChanged === "function") {
+    try {
+      fallback.handleTextChanged(text);
+      return true;
+    } catch (error) {
+      _vendetta.logger.error("Legacy composer text update failed", error);
+    }
+  }
+
+  return false;
+}
+
 function restoreDraft(id, original) {
   setTimeout(() => {
-    try {
-      inputByChannel.get(id)?.handleTextChanged(original);
-    } catch (error) {
-      _vendetta.logger.error("Failed to restore the original draft", error);
+    if (!setComposerText(id, original)) {
+      _vendetta.logger.error(
+        "Failed to restore the original draft: no compatible composer text API"
+      );
     }
   }, 0);
 }
@@ -239,7 +269,12 @@ async function translateDraft(inputProps) {
     const translated = await translatePolish(original, target);
     if (await requestManualChoice(original, translated, target)) {
       manualBypass.set(id, translated);
-      inputProps.handleTextChanged(translated);
+
+      if (!setComposerText(id, translated, inputProps)) {
+        manualBypass.delete(id);
+        throw new Error("No compatible composer text API was found");
+      }
+
       toasts.showToast("Translation inserted. Review it and send when ready.", assets.getAssetIDByName("check"));
     }
   } catch (error) {

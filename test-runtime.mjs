@@ -19,6 +19,7 @@ function createHarness() {
     targetLanguage: "en"
   };
   const ChatInputGuardWrapper = { default() {} };
+  const ChatInput = { props: { text: "" } };
   const Messaging = { sendMessage() {} };
   const stores = {
     ChannelStore: { getChannel: () => ({ name: "general" }) },
@@ -63,7 +64,11 @@ function createHarness() {
           View: function View() {}
         }
       },
-      findByName: (name) => name === "ChatInputGuardWrapper" ? ChatInputGuardWrapper : undefined,
+      findByName: (name) => {
+        if (name === "ChatInputGuardWrapper") return ChatInputGuardWrapper;
+        if (name === "ChatInput") return ChatInput;
+        return undefined;
+      },
       findByProps: (...props) => props.includes("sendMessage") ? Messaging : undefined,
       findByStoreName: (name) => stores[name]
     },
@@ -114,6 +119,7 @@ function createHarness() {
 
   return {
     calls,
+    chatInput: ChatInput,
     plugin,
     storage: pluginStorage,
     resetCalls() {
@@ -174,8 +180,12 @@ assert.equal(harness.calls.sent[0][1].content, "Błąd sieci");
 harness.resetCalls();
 harness.setFetchMode("echo");
 harness.setConfirmation("cancel");
+harness.chatInput.props.text = "";
 await harness.send("Anuluj wysłanie");
+await new Promise((resolve) => setTimeout(resolve, 0));
+
 assert.equal(harness.calls.sent.length, 0);
+assert.equal(harness.chatInput.props.text, "Anuluj wysłanie");
 
 harness.plugin.onUnload();
 assert.equal(harness.calls.unpatches, 2);
