@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "test": "node test-build.mjs"
+    "test": "node test-build.mjs && node test-runtime.mjs"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.17"
