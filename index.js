@@ -238,6 +238,7 @@ function toggleAutoForChannel() {
 }
 function TranslateButton({ inputProps }) {
   storage.useProxy(settings);
+  const navigation = common.NavigationNative.useNavigation();
   const id = channelId();
   const [hasText, setHasText] = common.React.useState(
     Boolean(id && DraftStore?.getDraft?.(id, 0)?.trim())
@@ -253,29 +254,46 @@ function TranslateButton({ inputProps }) {
     });
     return () => void unpatch();
   }, [inputProps]);
+  const openTargetPicker = () => navigation.push("VendettaCustomPage", {
+    title: id ? `Target for ${channelLabel(id)}` : "Default target language",
+    render: () => /* @__PURE__ */ common.React.createElement(LanguagePicker, { selectedChannelId: id })
+  });
   return /* @__PURE__ */ common.React.createElement(
-    common.ReactNative.Pressable,
+    common.ReactNative.View,
     {
-      accessibilityLabel: "Translate Polish message",
-      accessibilityHint: "Tap to translate manually. Hold to toggle automatic translation for this channel.",
-      disabled: pendingChannels.has(id ?? ""),
-      onPress: () => void translateDraft(inputProps),
-      onLongPress: toggleAutoForChannel,
       style: {
-        minWidth: 58,
-        height: 36,
-        paddingHorizontal: 9,
-        marginLeft: 6,
-        marginTop: -2,
-        borderRadius: 18,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: effective.auto ? "#248046" : "#4e5058",
-        opacity: hasText ? 1 : 0.45
+        flexDirection: "row",
+        position: "absolute",
+        left: 0,
+        top: -44,
+        zIndex: 3
       }
     },
-    /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 11, fontWeight: "700" } }, `PL\u2192${effective.target.toUpperCase()}`),
-    /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 8 } }, effective.auto ? "AUTO ON" : "MANUAL")
+    /* @__PURE__ */ common.React.createElement(
+      common.ReactNative.Pressable,
+      {
+        accessibilityLabel: `Translate Polish to ${languageName(effective.target)}`,
+        accessibilityHint: "Tap an empty button to choose a language. Type text and tap to translate. Hold to toggle automatic translation.",
+        disabled: pendingChannels.has(id ?? ""),
+        onPress: () => hasText ? void translateDraft(inputProps) : openTargetPicker(),
+        onLongPress: toggleAutoForChannel,
+        style: {
+          minWidth: 76,
+          height: 40,
+          paddingHorizontal: 12,
+          marginLeft: 8,
+          marginTop: -4,
+          borderRadius: 20,
+          flexShrink: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: effective.auto ? "#248046" : "#4e5058",
+          opacity: hasText ? 1 : 0.72
+        }
+      },
+      /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 12, fontWeight: "700" } }, `PL\u2192${effective.target.toUpperCase()}`),
+      /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 8 } }, effective.auto ? "AUTO ON" : hasText ? "TRANSLATE" : "LANGUAGE")
+    )
   );
 }
 function patchComposer() {
@@ -468,7 +486,7 @@ function Settings() {
         render: () => /* @__PURE__ */ common.React.createElement(LanguagePicker, { selectedChannelId: id })
       })
     }
-  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap PL\u2192LANG beside the message box for manual translation. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."));
+  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap an empty PL\u2192LANG button to choose the target language. Type a message and tap it for manual translation. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."));
 }
 var index = {
   onLoad() {
