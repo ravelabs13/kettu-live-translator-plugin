@@ -118,6 +118,7 @@ async function translatePolish(text, targetLanguage) {
 }const settings = plugin.storage;
 let ChatInputGuardWrapper;
 let ChatInput;
+let DraftManager;
 let Messaging;
 let SelectedChannelStore;
 let ChannelStore;
@@ -126,10 +127,30 @@ const { FormRow, FormRadioRow, FormSwitchRow } = components.Forms ?? {};
 const CompatibleCodeblock = components.Codeblock;
 const CompatibleSearch = components.Search;
 const inputByChannel = /* @__PURE__ */ new Map();
+const inputRefByChannel = /* @__PURE__ */ new Map();
 const manualBypass = /* @__PURE__ */ new Map();
 const pendingChannels = /* @__PURE__ */ new Set();
 let unpatches = [];
 let runtimeStatus = "Not started";
+let d1LastComposerSignature = "";
+
+function d1(event, details = {}) {
+  try {
+    _vendetta.logger.log(`[POT:D1] ${event} ${JSON.stringify(details)}`);
+  } catch (error) {
+    try {
+      _vendetta.logger.error(`[POT:D1] logging failed: ${String(error)}`);
+    } catch {}
+  }
+}
+
+function d1Length(value) {
+  return typeof value === "string" ? value.length : -1;
+}
+
+function d1Sample(value) {
+  return typeof value === "string" ? value.slice(0, 80) : "";
+}
 function resolveDiscordModules() {
   try {
     ChatInputGuardWrapper = metro.findByName("ChatInputGuardWrapper", false);
@@ -140,6 +161,11 @@ function resolveDiscordModules() {
     ChatInput = metro.findByName("ChatInput", false);
   } catch (error) {
     _vendetta.logger.error("ChatInput module lookup failed", error);
+  }
+  try {
+    DraftManager = metro.findByProps("clearDraft", "saveDraft");
+  } catch (error) {
+    _vendetta.logger.error("DraftManager lookup failed", error);
   }
   try {
     Messaging = metro.findByProps("sendMessage", "editMessage") ?? metro.findByProps("sendMessage");
@@ -173,26 +199,78 @@ function channelLabel(id) {
   return channel?.name ? `#${channel.name}` : id;
 }
 function setComposerText(id, text, inputProps) {
+  const inputRef = inputRefByChannel.get(id);
+  const liveInput = inputRef?.current;
+  const snapshotInput = inputProps ?? inputByChannel.get(id);
+  const draftBefore = DraftStore?.getDraft?.(id, 0) ?? "";
+
+  d1("setComposerText:before", {
+    id,
+    textLength: d1Length(text),
+    draftBeforeLength: d1Length(draftBefore),
+    chatInputPropsObject: Boolean(ChatInput?.props && typeof ChatInput.props === "object"),
+    refFound: Boolean(inputRef),
+    liveCurrentFound: Boolean(liveInput),
+    snapshotHandleTextChanged: typeof snapshotInput?.handleTextChanged,
+    snapshotSetText: typeof snapshotInput?.setText,
+    liveHandleTextChanged: typeof liveInput?.handleTextChanged,
+    liveSetText: typeof liveInput?.setText,
+    liveEqualsSnapshot: liveInput ? liveInput === snapshotInput : null,
+    draftStoreSetDraft: typeof DraftStore?.setDraft,
+    draftManagerSaveDraft: typeof DraftManager?.saveDraft
+  });
+
   try {
     if (ChatInput?.props && typeof ChatInput.props === "object") {
       ChatInput.props.text = text;
+
+      const draftAfter = DraftStore?.getDraft?.(id, 0) ?? "";
+
+      d1("setComposerText:ChatInput.props", {
+        assignmentMatches: ChatInput.props.text === text,
+        draftAfterLength: d1Length(draftAfter),
+        draftMatchesRequested: draftAfter === text
+      });
+
+      setTimeout(() => {
+        const delayedDraft = DraftStore?.getDraft?.(id, 0) ?? "";
+
+        d1("setComposerText:afterTick", {
+          draftLength: d1Length(delayedDraft),
+          draftMatchesRequested: delayedDraft === text
+        });
+      }, 50);
+
       return true;
     }
   } catch (error) {
     _vendetta.logger.error("ChatInput text update failed", error);
   }
 
-  const fallback = inputProps ?? inputByChannel.get(id);
+  const fallback = snapshotInput;
 
   if (typeof fallback?.handleTextChanged === "function") {
     try {
+      d1("setComposerText:fallback:before", {
+        method: "handleTextChanged"
+      });
+
       fallback.handleTextChanged(text);
+
+      const draftAfter = DraftStore?.getDraft?.(id, 0) ?? "";
+
+      d1("setComposerText:fallback:after", {
+        draftAfterLength: d1Length(draftAfter),
+        draftMatchesRequested: draftAfter === text
+      });
+
       return true;
     } catch (error) {
       _vendetta.logger.error("Legacy composer text update failed", error);
     }
   }
 
+  d1("setComposerText:noCompatibleMethod", { id });
   return false;
 }
 
@@ -206,6 +284,14 @@ function restoreDraft(id, original) {
   }, 0);
 }
 function Preview({ original, translated, target }) {
+  d1("Preview:render", {
+    originalLength: d1Length(original),
+    translatedLength: d1Length(translated),
+    target,
+    originalSample: d1Sample(original),
+    translatedSample: d1Sample(translated)
+  });
+
   return /* @__PURE__ */ common.React.createElement(common.ReactNative.ScrollView, { style: { maxHeight: common.ReactNative.Dimensions.get("window").height * 0.62 } }, /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { marginBottom: 6, fontWeight: "700" } }, "Polish original"), /* @__PURE__ */ common.React.createElement(CompatibleCodeblock, null, original), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { marginTop: 14, marginBottom: 6, fontWeight: "700" } }, languageName(target), " translation"), /* @__PURE__ */ common.React.createElement(CompatibleCodeblock, null, translated));
 }
 function requestSendChoice(original, translated, target) {
@@ -224,14 +310,30 @@ function requestSendChoice(original, translated, target) {
   });
 }
 function requestManualChoice(original, translated, target) {
+  d1("manualChoice:open", {
+    originalLength: d1Length(original),
+    translatedLength: d1Length(translated),
+    target,
+    originalSample: d1Sample(original),
+    translatedSample: d1Sample(translated)
+  });
+
   return new Promise((resolve) => {
     alerts.showConfirmationAlert({
       title: "Review translation",
       content: /* @__PURE__ */ common.React.createElement(Preview, { original, translated, target }),
       confirmText: "Use translation",
-      onConfirm: () => resolve(true),
+      onConfirm: () => {
+        d1("manualChoice:onConfirm", {
+          translatedLength: d1Length(translated)
+        });
+        resolve(true);
+      },
       cancelText: "Keep original",
-      onCancel: () => resolve(false),
+      onCancel: () => {
+        d1("manualChoice:onCancel", {});
+        resolve(false);
+      },
       isDismissable: false
     });
   });
@@ -267,10 +369,39 @@ async function translateDraft(inputProps) {
   toasts.showToast(`Translating to ${languageName(target)}\u2026`);
   try {
     const translated = await translatePolish(original, target);
+
+    d1("translateDraft:translated", {
+      id,
+      originalLength: d1Length(original),
+      translatedLength: d1Length(translated),
+      translatedSample: d1Sample(translated)
+    });
+
     if (await requestManualChoice(original, translated, target)) {
+      const inputRef = inputRefByChannel.get(id);
+      const liveInput = inputRef?.current;
+
+      d1("translateDraft:confirmed", {
+        id,
+        refFound: Boolean(inputRef),
+        liveCurrentFound: Boolean(liveInput),
+        snapshotHandleTextChanged: typeof inputProps?.handleTextChanged,
+        snapshotSetText: typeof inputProps?.setText,
+        liveHandleTextChanged: typeof liveInput?.handleTextChanged,
+        liveSetText: typeof liveInput?.setText,
+        liveEqualsSnapshot: liveInput ? liveInput === inputProps : null
+      });
+
       manualBypass.set(id, translated);
 
-      if (!setComposerText(id, translated, inputProps)) {
+      const updated = setComposerText(id, translated, inputProps);
+
+      d1("translateDraft:setResult", {
+        id,
+        updated
+      });
+
+      if (!updated) {
         manualBypass.delete(id);
         throw new Error("No compatible composer text API was found");
       }
@@ -360,18 +491,54 @@ function patchComposer() {
     throw new Error("ChatInputGuardWrapper.default was not found");
   }
   return patcher.after("default", ChatInputGuardWrapper, (_, result) => {
-    const inputProps = utils.findInReactTree(
+    const inputNode = utils.findInReactTree(
       result?.props?.children,
-      (node) => node?.props?.chatInputRef?.current
-    )?.props?.chatInputRef?.current;
-    if (!inputProps?.handleTextChanged) return;
+      (node) => node?.props?.chatInputRef
+    );
+
+    const inputRef = inputNode?.props?.chatInputRef;
+    const inputProps = inputRef?.current;
     const id = channelId();
-    if (id) inputByChannel.set(id, inputProps);
-    const children = utils.findInReactTree(
-      result.props.children,
+
+    if (id && inputRef) inputRefByChannel.set(id, inputRef);
+    if (id && inputProps) inputByChannel.set(id, inputProps);
+
+    const targetNode = utils.findInReactTree(
+      result?.props?.children,
       (node) => node?.type?.displayName === "View" && Array.isArray(node?.props?.children)
-    )?.props?.children;
-    if (!children || children.some((child) => child?.key === "polish-outgoing-translator")) return;
+    );
+
+    const children = targetNode?.props?.children;
+
+    const composerState = {
+      id: id ?? null,
+      refFound: Boolean(inputRef),
+      currentFound: Boolean(inputProps),
+      handleTextChanged: typeof inputProps?.handleTextChanged,
+      setText: typeof inputProps?.setText,
+      rootChildrenArray: Array.isArray(result?.props?.children),
+      targetViewFound: Boolean(targetNode),
+      targetChildCount: Array.isArray(children) ? children.length : -1,
+      translatorAlreadyInjected: Boolean(
+        Array.isArray(children) &&
+        children.some((child) => child?.key === "polish-outgoing-translator")
+      )
+    };
+
+    const composerSignature = JSON.stringify(composerState);
+
+    if (composerSignature !== d1LastComposerSignature) {
+      d1LastComposerSignature = composerSignature;
+      d1("patchComposer:state", composerState);
+    }
+
+    if (!inputProps?.handleTextChanged) return;
+
+    if (
+      !children ||
+      children.some((child) => child?.key === "polish-outgoing-translator")
+    ) return;
+
     children.unshift(
       common.React.createElement(TranslateButton, {
         key: "polish-outgoing-translator",
