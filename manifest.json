@@ -6,17 +6,3 @@
   "vendetta": { "icon": "ic_locale_24px" },
   "hash": "f07ee3703a13f435f5a368177fd56adc4d33597c880f35ca26fd01ee612ff5b0"
 }
-{
-  "name": "Polish Outgoing Translator",
-  "description": "Translates outgoing Polish messages before they are sent.",
-  "authors": [
-    {
-      "name": "Codex"
-    }
-  ],
-  "main": "index.js",
-  "vendetta": {
-    "icon": "ic_locale_24px"
-  },
-  "hash": "044d2b8c8e8e4ae5ad267874a1b65c9c92700e083d9d516332b1bf129da0302e"
-}
