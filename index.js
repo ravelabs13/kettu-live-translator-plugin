@@ -116,18 +116,42 @@ async function translatePolish(text, targetLanguage) {
   }
   return protectedText.restore(translatedChunks.join(""));
 }const settings = plugin.storage;
-const ChatInputGuardWrapper = metro.findByName("ChatInputGuardWrapper", false);
-const Messaging = metro.findByProps("sendMessage", "editMessage");
-const SelectedChannelStore = metro.findByStoreName("SelectedChannelStore");
-const ChannelStore = metro.findByStoreName("ChannelStore");
-const DraftStore = metro.findByStoreName("DraftStore");
-const { FormRow, FormRadioRow, FormSwitchRow } = components.Forms;
+let ChatInputGuardWrapper;
+let Messaging;
+let SelectedChannelStore;
+let ChannelStore;
+let DraftStore;
+const { FormRow, FormRadioRow, FormSwitchRow } = components.Forms ?? {};
 const CompatibleCodeblock = components.Codeblock;
 const CompatibleSearch = components.Search;
 const inputByChannel = /* @__PURE__ */ new Map();
 const manualBypass = /* @__PURE__ */ new Map();
 const pendingChannels = /* @__PURE__ */ new Set();
 let unpatches = [];
+let runtimeStatus = "Not started";
+function resolveDiscordModules() {
+  try {
+    ChatInputGuardWrapper = metro.findByName("ChatInputGuardWrapper", false);
+  } catch (error) {
+    _vendetta.logger.error("Chat input module lookup failed", error);
+  }
+  try {
+    Messaging = metro.findByProps("sendMessage", "editMessage") ?? metro.findByProps("sendMessage");
+  } catch (error) {
+    _vendetta.logger.error("Messaging module lookup failed", error);
+  }
+  for (const [name, assign] of [
+    ["SelectedChannelStore", (value) => SelectedChannelStore = value],
+    ["ChannelStore", (value) => ChannelStore = value],
+    ["DraftStore", (value) => DraftStore = value]
+  ]) {
+    try {
+      assign(metro.findByStoreName(name));
+    } catch (error) {
+      _vendetta.logger.error(`${name} lookup failed`, error);
+    }
+  }
+}
 function initializeSettings() {
   settings.autoTranslate ?? (settings.autoTranslate = false);
   settings.targetLanguage ?? (settings.targetLanguage = "en");
@@ -297,6 +321,9 @@ function TranslateButton({ inputProps }) {
   );
 }
 function patchComposer() {
+  if (typeof ChatInputGuardWrapper?.default !== "function") {
+    throw new Error("ChatInputGuardWrapper.default was not found");
+  }
   return patcher.after("default", ChatInputGuardWrapper, (_, result) => {
     const inputProps = utils.findInReactTree(
       result?.props?.children,
@@ -319,6 +346,9 @@ function patchComposer() {
   });
 }
 function patchSending() {
+  if (typeof Messaging?.sendMessage !== "function") {
+    throw new Error("sendMessage was not found");
+  }
   return patcher.instead("sendMessage", Messaging, async (args, originalSend) => {
     const id = args[0];
     const message = args[1];
@@ -486,16 +516,45 @@ function Settings() {
         render: () => /* @__PURE__ */ common.React.createElement(LanguagePicker, { selectedChannelId: id })
       })
     }
-  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap an empty PL\u2192LANG button to choose the target language. Type a message and tap it for manual translation. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."));
+  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap an empty PL\u2192LANG button to choose the target language. Type a message and tap it for manual translation. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."), /* @__PURE__ */ common.React.createElement(FormRow, { label: "Runtime status", subLabel: runtimeStatus }));
 }
 var index = {
   onLoad() {
-    initializeSettings();
-    if (!ChatInputGuardWrapper || !Messaging?.sendMessage) {
-      throw new Error("Required Discord chat modules were not found");
+    try {
+      initializeSettings();
+      resolveDiscordModules();
+      const active = [];
+      const failures = [];
+      try {
+        unpatches.push(patchComposer());
+        active.push("composer button");
+      } catch (error) {
+        failures.push("composer button");
+        _vendetta.logger.error("Composer integration was unavailable", error);
+      }
+      try {
+        unpatches.push(patchSending());
+        active.push("outgoing translation");
+      } catch (error) {
+        failures.push("outgoing translation");
+        _vendetta.logger.error("Sending integration was unavailable", error);
+      }
+      runtimeStatus = active.length ? `Active: ${active.join(", ")}${failures.length ? `. Unavailable: ${failures.join(", ")}` : ""}` : "Enabled, but this Discord build exposed no compatible chat modules";
+      try {
+        toasts.showToast(active.length ? "Polish Outgoing Translator enabled" : "Plugin enabled; open its settings for diagnostics");
+      } catch {
+      }
+      try {
+        _vendetta.logger.log(`Polish Outgoing Translator loaded. ${runtimeStatus}`);
+      } catch {
+      }
+    } catch (error) {
+      runtimeStatus = `Enabled with initialization error: ${error instanceof Error ? error.message : String(error)}`;
+      try {
+        _vendetta.logger.error("Plugin initialization failed without disabling the plugin", error);
+      } catch {
+      }
     }
-    unpatches = [patchComposer(), patchSending()];
-    _vendetta.logger.log("Polish Outgoing Translator loaded");
   },
   onUnload() {
     for (const unpatch of unpatches.splice(0)) unpatch();

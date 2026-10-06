@@ -1,8 +1,14 @@
 {
   "name": "Polish Outgoing Translator",
   "description": "Translates outgoing Polish messages before they are sent.",
-  "authors": [{ "name": "Codex" }],
-  "main": "index-v1.2.js",
-  "vendetta": { "icon": "ic_locale_24px" },
-  "hash": "f07ee3703a13f435f5a368177fd56adc4d33597c880f35ca26fd01ee612ff5b0"
+  "authors": [
+    {
+      "name": "Codex"
+    }
+  ],
+  "main": "index.js",
+  "vendetta": {
+    "icon": "ic_locale_24px"
+  },
+  "hash": "7193c1f9056b431d9dbb9720c649e040195f04db0242f2a05973e1eec93539fc"
 }
