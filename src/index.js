@@ -247,6 +247,65 @@ function setComposerText(id, text, inputProps) {
     _vendetta.logger.error("ChatInput text update failed", error);
   }
 
+  if (typeof liveInput?.setText === "function") {
+    try {
+      d1("setComposerText:liveSetText:before", {
+        id,
+        requestedLength: d1Length(text),
+        draftBeforeLength: d1Length(DraftStore?.getDraft?.(id, 0) ?? ""),
+        refStillCurrent: inputRef?.current === liveInput
+      });
+
+      liveInput.setText(text);
+
+      const draftAfterSetText = DraftStore?.getDraft?.(id, 0) ?? "";
+
+      d1("setComposerText:liveSetText:after", {
+        id,
+        draftAfterLength: d1Length(draftAfterSetText),
+        draftMatchesRequested: draftAfterSetText === text,
+        refStillCurrent: inputRef?.current === liveInput
+      });
+
+      setTimeout(() => {
+        const currentInput = inputRef?.current;
+        const draftAfterTick = DraftStore?.getDraft?.(id, 0) ?? "";
+
+        d1("setComposerText:liveSetText:afterTick0", {
+          id,
+          draftLength: d1Length(draftAfterTick),
+          draftMatchesRequested: draftAfterTick === text,
+          refStillCurrent: currentInput === liveInput,
+          currentSetText: typeof currentInput?.setText,
+          currentHandleTextChanged: typeof currentInput?.handleTextChanged
+        });
+      }, 0);
+
+      setTimeout(() => {
+        const currentInput = inputRef?.current;
+        const draftAfterDelay = DraftStore?.getDraft?.(id, 0) ?? "";
+
+        d1("setComposerText:liveSetText:after50ms", {
+          id,
+          draftLength: d1Length(draftAfterDelay),
+          draftMatchesRequested: draftAfterDelay === text,
+          refStillCurrent: currentInput === liveInput,
+          currentSetText: typeof currentInput?.setText,
+          currentHandleTextChanged: typeof currentInput?.handleTextChanged
+        });
+      }, 50);
+
+      return true;
+    } catch (error) {
+      d1("setComposerText:liveSetText:error", {
+        id,
+        message: error instanceof Error ? error.message : String(error)
+      });
+
+      _vendetta.logger.error("Live composer setText failed", error);
+    }
+  }
+
   const fallback = snapshotInput;
 
   if (typeof fallback?.handleTextChanged === "function") {
