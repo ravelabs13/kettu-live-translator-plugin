@@ -197,6 +197,8 @@ const inputByChannel = /* @__PURE__ */ new Map();
 const inputRefByChannel = /* @__PURE__ */ new Map();
 const manualBypass = /* @__PURE__ */ new Map();
 const pendingChannels = /* @__PURE__ */ new Set();
+const composerAutoMountTimers = [];
+let composerInjectionCount = 0;
 let unpatches = [];
 let runtimeStatus = "Not started";
 let d1LastComposerSignature = "";
@@ -266,6 +268,132 @@ function channelLabel(id) {
   const channel = ChannelStore?.getChannel?.(id);
   return channel?.name ? `#${channel.name}` : id;
 }
+
+function clearComposerAutoMountTimers() {
+  while (composerAutoMountTimers.length) {
+    clearTimeout(composerAutoMountTimers.pop());
+  }
+}
+
+function emitComposerRefreshStore(name, store) {
+  if (typeof store?.emitChange !== "function") {
+    return false;
+  }
+
+  try {
+    store.emitChange();
+
+    d1("autoMount:emit", {
+      store: name,
+      success: true
+    });
+
+    return true;
+  } catch (error) {
+    d1("autoMount:emitError", {
+      store: name,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error)
+    });
+
+    return false;
+  }
+}
+
+function requestComposerAutoMount(attempt) {
+  if (composerInjectionCount > 0) {
+    d1("autoMount:alreadyInjected", {
+      attempt,
+      composerInjectionCount
+    });
+
+    clearComposerAutoMountTimers();
+    return;
+  }
+
+  const id = channelId();
+
+  if (!id) {
+    d1("autoMount:noChannel", {
+      attempt
+    });
+
+    return;
+  }
+
+  const draftBefore =
+    DraftStore?.getDraft?.(id, 0) ?? "";
+
+  let emittedStores = 0;
+
+  if (
+    emitComposerRefreshStore(
+      "SelectedChannelStore",
+      SelectedChannelStore
+    )
+  ) {
+    emittedStores += 1;
+  }
+
+  if (
+    emitComposerRefreshStore(
+      "ChannelStore",
+      ChannelStore
+    )
+  ) {
+    emittedStores += 1;
+  }
+
+  if (
+    emitComposerRefreshStore(
+      "DraftStore",
+      DraftStore
+    )
+  ) {
+    emittedStores += 1;
+  }
+
+  const draftAfter =
+    DraftStore?.getDraft?.(id, 0) ?? "";
+
+  d1("autoMount:attempt", {
+    attempt,
+    id,
+    emittedStores,
+    draftLength: d1Length(draftBefore),
+    draftUnchanged: draftBefore === draftAfter,
+    composerInjectionCount
+  });
+}
+
+function scheduleComposerAutoMount() {
+  clearComposerAutoMountTimers();
+
+  const delays = [
+    0,
+    200,
+    600,
+    1200,
+    2200,
+    3500
+  ];
+
+  d1("autoMount:schedule", {
+    attempts: delays.length,
+    delays
+  });
+
+  delays.forEach((delay, index) => {
+    const timer = setTimeout(() => {
+      requestComposerAutoMount(index + 1);
+    }, delay);
+
+    composerAutoMountTimers.push(timer);
+  });
+}
+
 function setComposerText(id, text, inputProps) {
   const inputRef = inputRefByChannel.get(id);
   const liveInput = inputRef?.current;
@@ -823,6 +951,15 @@ function patchComposer() {
         inputProps
       })
     );
+
+    composerInjectionCount += 1;
+
+    d1("autoMount:injected", {
+      id,
+      composerInjectionCount
+    });
+
+    clearComposerAutoMountTimers();
   });
 }
 function patchSending() {
@@ -1116,6 +1253,7 @@ var index = {
       try {
         unpatches.push(patchComposer());
         active.push("composer button");
+        scheduleComposerAutoMount();
       } catch (error) {
         failures.push("composer button");
         _vendetta.logger.error("Composer integration was unavailable", error);
@@ -1145,10 +1283,15 @@ var index = {
     }
   },
   onUnload() {
+    clearComposerAutoMountTimers();
+    composerInjectionCount = 0;
+
     for (const unpatch of unpatches.splice(0)) unpatch();
+
     inputByChannel.clear();
     manualBypass.clear();
     pendingChannels.clear();
+
     _vendetta.logger.log("Polish Outgoing Translator unloaded");
   },
   settings: Settings

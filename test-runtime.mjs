@@ -11,6 +11,7 @@ function createHarness() {
     logs: [],
     patches: {},
     sent: [],
+    storeEmits: [],
     toasts: [],
     unpatches: 0
   };
@@ -24,9 +25,21 @@ function createHarness() {
   const ChatInput = { props: { text: "" } };
   const Messaging = { sendMessage() {} };
   const stores = {
-    ChannelStore: { getChannel: () => ({ name: "general" }) },
-    DraftStore: { getDraft: () => "" },
-    SelectedChannelStore: { getChannelId: () => "channel-1" }
+    ChannelStore: {
+      getChannel: () => ({ name: "general" }),
+      emitChange: () =>
+        calls.storeEmits.push("ChannelStore")
+    },
+    DraftStore: {
+      getDraft: () => "",
+      emitChange: () =>
+        calls.storeEmits.push("DraftStore")
+    },
+    SelectedChannelStore: {
+      getChannelId: () => "channel-1",
+      emitChange: () =>
+        calls.storeEmits.push("SelectedChannelStore")
+    }
   };
   let confirmation = "confirm";
   let fetchMode = "echo";
@@ -178,6 +191,37 @@ function createHarness() {
 
 const harness = createHarness();
 harness.plugin.onLoad();
+
+await new Promise(
+  (resolve) => setTimeout(resolve, 25)
+);
+
+assert.ok(
+  harness.calls.storeEmits.includes(
+    "SelectedChannelStore"
+  )
+);
+
+assert.ok(
+  harness.calls.storeEmits.includes(
+    "ChannelStore"
+  )
+);
+
+assert.ok(
+  harness.calls.storeEmits.includes(
+    "DraftStore"
+  )
+);
+
+assert.ok(
+  harness.calls.logs.some(
+    (entry) =>
+      String(entry[1]).includes(
+        "autoMount:attempt"
+      )
+  )
+);
 
 assert.equal(harness.storage.sourceLanguage, "auto");
 assert.equal(harness.calls.patches.composer.method, "default");
@@ -371,6 +415,7 @@ harness.plugin.onUnload();
 assert.equal(harness.calls.unpatches, 2);
 
 console.log("Runtime module lookup and patch registration: passed");
+console.log("Automatic composer warm-up: passed");
 console.log("Protected Discord syntax round trip: passed");
 console.log("Long-message chunking: passed");
 console.log("Automatic source language request: passed");
