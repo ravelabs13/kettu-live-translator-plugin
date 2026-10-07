@@ -39,6 +39,7 @@ function effectiveChannelSettings(storage, channelId) {
   const override = storage.channelOverrides?.[channelId] ?? {};
   return {
     auto: override.auto ?? storage.autoTranslate ?? false,
+    source: storage.sourceLanguage ?? "auto",
     target: override.target ?? storage.targetLanguage ?? "en"
   };
 }
@@ -52,6 +53,7 @@ function shouldTranslateMessage(message, effective, bypassText) {
     && content !== bypassText
   );
 }const LANGUAGES = {
+  "Polish": "pl",
   "English": "en",
   "German": "de",
   "Spanish": "es",
@@ -88,6 +90,13 @@ function shouldTranslateMessage(message, effective, bypassText) {
 function languageName(code) {
   return Object.entries(LANGUAGES).find(([, value]) => value === code)?.[0] ?? code;
 }
+
+function sourceLanguageName(code) {
+  return code === "auto"
+    ? "Auto-detect"
+    : languageName(code);
+}
+
 async function translateChunk(text, targetLanguage, sourceLanguage = "auto") {
   const query = new URLSearchParams({
     client: "gtx",
@@ -238,6 +247,7 @@ function resolveDiscordModules() {
 }
 function initializeSettings() {
   settings.autoTranslate ?? (settings.autoTranslate = false);
+  settings.sourceLanguage ?? (settings.sourceLanguage = "auto");
   settings.targetLanguage ?? (settings.targetLanguage = "en");
   settings.errorBehavior ?? (settings.errorBehavior = "ask");
   settings.channelOverrides ?? (settings.channelOverrides = {});
@@ -534,21 +544,21 @@ async function translateDraft(inputProps) {
   if (!id) return;
   const original = DraftStore?.getDraft?.(id, 0) ?? "";
   if (!original.trim()) {
-    toasts.showToast("Type a Polish message first");
+    toasts.showToast("Type a message first");
     return;
   }
   if (pendingChannels.has(id)) {
     toasts.showToast("Translation is already in progress");
     return;
   }
-  const { target } = effectiveChannelSettings(settings, id);
+  const { source, target } = effectiveChannelSettings(settings, id);
   pendingChannels.add(id);
   toasts.showToast(`Translating to ${languageName(target)}\u2026`);
   try {
     const translation = await translateText(
       original,
       target,
-      "auto"
+      source
     );
 
     const translated = translation.text;
@@ -557,6 +567,7 @@ async function translateDraft(inputProps) {
       id,
       originalLength: d1Length(original),
       translatedLength: d1Length(translated),
+      sourceMode: source,
       detectedSource: translation.detectedSource,
       translatedSample: d1Sample(translated)
     });
@@ -617,7 +628,13 @@ function TranslateButton({ inputProps }) {
   const [hasText, setHasText] = common.React.useState(
     Boolean(id && DraftStore?.getDraft?.(id, 0)?.trim())
   );
-  const effective = id ? effectiveChannelSettings(settings, id) : { auto: settings.autoTranslate, target: settings.targetLanguage };
+  const effective = id
+    ? effectiveChannelSettings(settings, id)
+    : {
+        auto: settings.autoTranslate,
+        source: settings.sourceLanguage ?? "auto",
+        target: settings.targetLanguage
+      };
   common.React.useEffect(() => {
     const unpatch = patcher.before("handleTextChanged", inputProps, ([text]) => {
       setHasText(Boolean(text?.trim()));
@@ -759,13 +776,14 @@ function patchSending() {
       const translation = await translateText(
         originalText,
         effective.target,
-        "auto"
+        effective.source
       );
 
       const translated = translation.text;
 
       d1("patchSending:translated", {
         id,
+        sourceMode: effective.source,
         detectedSource: translation.detectedSource,
         target: effective.target
       });
@@ -837,6 +855,69 @@ function LanguagePicker({ selectedChannelId }) {
     }
   )));
 }
+
+function SourceLanguagePicker() {
+  storage.useProxy(settings);
+
+  const [query, setQuery] = common.React.useState("");
+  const current = settings.sourceLanguage ?? "auto";
+
+  const options = [
+    ["Auto-detect", "auto"],
+    ...Object.entries(LANGUAGES)
+  ];
+
+  const select = (code) => {
+    settings.sourceLanguage = code;
+
+    toasts.showToast(
+      code === "auto"
+        ? "Source language set to Auto-detect"
+        : `Source language set to ${languageName(code)}`
+    );
+  };
+
+  return /* @__PURE__ */ common.React.createElement(
+    common.ReactNative.ScrollView,
+    {
+      style: {
+        flex: 1
+      }
+    },
+    /* @__PURE__ */ common.React.createElement(
+      CompatibleSearch,
+      {
+        style: {
+          padding: 15
+        },
+        placeholder: "Search source language",
+        onChangeText: (text) => setQuery(text)
+      }
+    ),
+    options
+      .filter(([name, code]) =>
+        `${name} ${code}`
+          .toLowerCase()
+          .includes(query.toLowerCase())
+      )
+      .map(([name, code]) =>
+        /* @__PURE__ */ common.React.createElement(
+          FormRadioRow,
+          {
+            key: code,
+            label: name,
+            subLabel:
+              code === "auto"
+                ? "Automatically detect the message language"
+                : code,
+            selected: current === code,
+            onPress: () => select(code)
+          }
+        )
+      )
+  );
+}
+
 function autoOverride(id) {
   const value = settings.channelOverrides[id]?.auto;
   return value === void 0 ? "inherit" : value ? "on" : "off";
@@ -853,7 +934,32 @@ function Settings() {
   const id = channelId();
   const override = id ? autoOverride(id) : "inherit";
   const channelTarget = id ? settings.channelOverrides[id]?.target : void 0;
-  return /* @__PURE__ */ common.React.createElement(common.ReactNative.ScrollView, { style: { flex: 1 } }, /* @__PURE__ */ common.React.createElement(FormRow, { label: "Source language", subLabel: "Polish (pl)" }), /* @__PURE__ */ common.React.createElement(
+  return /* @__PURE__ */ common.React.createElement(common.ReactNative.ScrollView, { style: { flex: 1 } }, /* @__PURE__ */ common.React.createElement(
+    FormRow,
+    {
+      label: "Source language",
+      subLabel: sourceLanguageName(
+        settings.sourceLanguage ?? "auto"
+      ),
+      trailing: () =>
+        /* @__PURE__ */ common.React.createElement(
+          FormRow.Arrow,
+          null
+        ),
+      onPress: () =>
+        navigation.push(
+          "VendettaCustomPage",
+          {
+            title: "Source language",
+            render: () =>
+              /* @__PURE__ */ common.React.createElement(
+                SourceLanguagePicker,
+                null
+              )
+          }
+        )
+    }
+  ), /* @__PURE__ */ common.React.createElement(
     FormSwitchRow,
     {
       label: "Auto Translate by default",

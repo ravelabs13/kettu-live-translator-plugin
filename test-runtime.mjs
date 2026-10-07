@@ -175,6 +175,7 @@ function createHarness() {
 const harness = createHarness();
 harness.plugin.onLoad();
 
+assert.equal(harness.storage.sourceLanguage, "auto");
 assert.equal(harness.calls.patches.composer.method, "default");
 assert.equal(harness.calls.patches.sending.method, "sendMessage");
 assert.ok(harness.calls.logs.some((entry) => String(entry[1]).includes("Active: composer button, outgoing translation")));
@@ -214,6 +215,54 @@ assert.equal(
 );
 
 harness.resetCalls();
+harness.storage.sourceLanguage = "de";
+
+await harness.send(
+  "Guten Morgen, wie geht es dir?"
+);
+
+assert.equal(
+  harness.calls.fetchRequests.length,
+  1
+);
+
+assert.equal(
+  harness.calls.fetchRequests[0].source,
+  "de"
+);
+
+assert.equal(
+  harness.calls.fetchRequests[0].target,
+  "en"
+);
+
+harness.storage.sourceLanguage = "auto";
+
+harness.resetCalls();
+harness.storage.targetLanguage = "pl";
+
+await harness.send(
+  "Good morning, how are you?"
+);
+
+assert.equal(
+  harness.calls.fetchRequests.length,
+  1
+);
+
+assert.equal(
+  harness.calls.fetchRequests[0].source,
+  "auto"
+);
+
+assert.equal(
+  harness.calls.fetchRequests[0].target,
+  "pl"
+);
+
+harness.storage.targetLanguage = "en";
+
+harness.resetCalls();
 harness.storage.autoTranslate = false;
 await harness.send("Bez tłumaczenia");
 assert.equal(harness.calls.fetchQueries.length, 0);
@@ -242,6 +291,8 @@ console.log("Runtime module lookup and patch registration: passed");
 console.log("Protected Discord syntax round trip: passed");
 console.log("Long-message chunking: passed");
 console.log("Automatic source language request: passed");
+console.log("Manual source language request: passed");
+console.log("Polish target language request: passed");
 console.log("Auto Translate bypass: passed");
 console.log("Network error fallback: passed");
 console.log("Cancel keeps the message unsent: passed");
