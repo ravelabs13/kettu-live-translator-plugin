@@ -201,6 +201,7 @@ const pendingChannels = /* @__PURE__ */ new Set();
 const composerAutoMountTimers = [];
 let composerInjectionCount = 0;
 let composerNativeWakeAttempted = false;
+let directComposerMounted = false;
 let unpatches = [];
 let runtimeStatus = "Not started";
 let d1LastComposerSignature = "";
@@ -1052,6 +1053,178 @@ function TranslateButton({ inputProps }) {
     )
   );
 }
+function findRenderedComponent(name) {
+  try {
+    const byDisplayName =
+      metro.find?.(
+        (module) =>
+          module?.type?.displayName === name
+      );
+
+    if (byDisplayName) {
+      return byDisplayName;
+    }
+  } catch {}
+
+  try {
+    return (
+      metro.findByName(name, false) ??
+      metro.findByName(name)
+    );
+  } catch {
+    return null;
+  }
+}
+
+function getRenderTarget(name) {
+  const component =
+    findRenderedComponent(name);
+
+  if (
+    component &&
+    typeof component.default === "function"
+  ) {
+    return {
+      target: component,
+      method: "default"
+    };
+  }
+
+  const target =
+    component?.type ?? component;
+
+  if (
+    target &&
+    typeof target.render === "function"
+  ) {
+    return {
+      target,
+      method: "render"
+    };
+  }
+
+  return null;
+}
+
+function getNativeComposerHandle(id) {
+  try {
+    return (
+      ChatInputUtils
+        ?.getBestActiveInputForChannelId
+        ?.(id) ??
+      ChatInputUtils
+        ?.getBestActiveInput
+        ?.() ??
+      null
+    );
+  } catch (error) {
+    d1("directMount:handleError", {
+      id,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error)
+    });
+
+    return null;
+  }
+}
+
+function patchComposerActions() {
+  const found =
+    getRenderTarget("ChatInputActions");
+
+  if (!found) {
+    d1("directMount:targetUnavailable", {
+      component: "ChatInputActions"
+    });
+
+    return null;
+  }
+
+  d1("directMount:targetFound", {
+    component: "ChatInputActions",
+    method: found.method
+  });
+
+  return patcher.after(
+    found.method,
+    found.target,
+    (_, result) => {
+      const id = channelId();
+
+      if (!id) {
+        return;
+      }
+
+      const inputProps =
+        getNativeComposerHandle(id);
+
+      if (
+        !inputProps ||
+        typeof inputProps.handleTextChanged
+          !== "function"
+      ) {
+        d1("directMount:noHandle", {
+          id,
+          handleFound:
+            Boolean(inputProps),
+          handleTextChanged:
+            typeof inputProps
+              ?.handleTextChanged
+        });
+
+        return;
+      }
+
+      inputByChannel.set(
+        id,
+        inputProps
+      );
+
+      inputRefByChannel.set(
+        id,
+        {
+          current: inputProps
+        }
+      );
+
+      if (!directComposerMounted) {
+        directComposerMounted = true;
+        composerInjectionCount += 1;
+
+        d1("directMount:injected", {
+          id,
+          composerInjectionCount,
+          method: found.method
+        });
+
+        clearComposerAutoMountTimers();
+      }
+
+      return common.React.createElement(
+        common.ReactNative.View,
+        {
+          style: {
+            flexDirection: "row",
+            alignItems: "center",
+            position: "relative"
+          }
+        },
+        result,
+        common.React.createElement(
+          TranslateButton,
+          {
+            key:
+              "polish-outgoing-translator-direct",
+            inputProps
+          }
+        )
+      );
+    }
+  );
+}
+
 function patchComposer() {
   if (typeof ChatInputGuardWrapper?.default !== "function") {
     throw new Error("ChatInputGuardWrapper.default was not found");
@@ -1096,6 +1269,15 @@ function patchComposer() {
     if (composerSignature !== d1LastComposerSignature) {
       d1LastComposerSignature = composerSignature;
       d1("patchComposer:state", composerState);
+    }
+
+    if (directComposerMounted) {
+      d1("patchComposer:fallbackSkipped", {
+        id,
+        reason: "direct composer mount active"
+      });
+
+      return;
     }
 
     if (!inputProps?.handleTextChanged) return;
@@ -1411,8 +1593,24 @@ var index = {
       const active = [];
       const failures = [];
       try {
-        unpatches.push(patchComposer());
+        const directComposerUnpatch =
+          patchComposerActions();
+
+        if (
+          typeof directComposerUnpatch
+            === "function"
+        ) {
+          unpatches.push(
+            directComposerUnpatch
+          );
+        }
+
+        unpatches.push(
+          patchComposer()
+        );
+
         active.push("composer button");
+
         scheduleComposerAutoMount();
       } catch (error) {
         failures.push("composer button");
@@ -1446,6 +1644,7 @@ var index = {
     clearComposerAutoMountTimers();
     composerInjectionCount = 0;
     composerNativeWakeAttempted = false;
+    directComposerMounted = false;
 
     for (const unpatch of unpatches.splice(0)) unpatch();
 

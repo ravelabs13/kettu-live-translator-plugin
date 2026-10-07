@@ -13,6 +13,7 @@ function createHarness() {
     sent: [],
     storeEmits: [],
     nativeWake: [],
+    directMountResult: null,
     toasts: [],
     unpatches: 0
   };
@@ -22,9 +23,23 @@ function createHarness() {
     errorBehavior: "ask",
     targetLanguage: "en"
   };
-  const ChatInputGuardWrapper = { default() {} };
-  const ChatInput = { props: { text: "" } };
-  const Messaging = { sendMessage() {} };
+  const ChatInputGuardWrapper = {
+    default() {}
+  };
+
+  const ChatInputActions = {
+    default() {}
+  };
+
+  const ChatInput = {
+    props: {
+      text: ""
+    }
+  };
+
+  const Messaging = {
+    sendMessage() {}
+  };
 
   const NativeComposerHandle = {
     getText: () => "",
@@ -32,8 +47,27 @@ function createHarness() {
     handleTextChanged() {},
     hideSideActions: () =>
       calls.nativeWake.push("hide"),
-    showSideActions: () =>
-      calls.nativeWake.push("show"),
+    showSideActions: () => {
+      calls.nativeWake.push("show");
+
+      const direct =
+        calls.patches
+          .composerActions
+          ?.callback;
+
+      if (
+        typeof direct === "function"
+      ) {
+        calls.directMountResult =
+          direct(
+            [],
+            {
+              type: "DiscordChatInputActions",
+              props: {}
+            }
+          );
+      }
+    },
     focus() {},
     blur() {}
   };
@@ -101,8 +135,18 @@ function createHarness() {
         }
       },
       findByName: (name) => {
-        if (name === "ChatInputGuardWrapper") return ChatInputGuardWrapper;
-        if (name === "ChatInput") return ChatInput;
+        if (
+          name === "ChatInputGuardWrapper"
+        ) return ChatInputGuardWrapper;
+
+        if (
+          name === "ChatInputActions"
+        ) return ChatInputActions;
+
+        if (
+          name === "ChatInput"
+        ) return ChatInput;
+
         return undefined;
       },
       findByProps: (...props) => {
@@ -123,7 +167,15 @@ function createHarness() {
       findByStoreName: (name) => stores[name]
     },
     patcher: {
-      after: (method, target, callback) => registerPatch("composer", method, target, callback),
+      after: (method, target, callback) =>
+        registerPatch(
+          target === ChatInputActions
+            ? "composerActions"
+            : "composer",
+          method,
+          target,
+          callback
+        ),
       before: () => () => {},
       instead: (method, target, callback) => registerPatch("sending", method, target, callback)
     },
@@ -252,6 +304,27 @@ assert.ok(
 assert.deepEqual(
   harness.calls.nativeWake,
   ["hide", "show"]
+);
+
+assert.equal(
+  harness.calls
+    .patches
+    .composerActions
+    .method,
+  "default"
+);
+
+assert.ok(
+  harness.calls.directMountResult
+);
+
+assert.ok(
+  harness.calls.logs.some(
+    (entry) =>
+      String(entry[1]).includes(
+        "directMount:injected"
+      )
+  )
 );
 
 assert.ok(
@@ -470,10 +543,11 @@ assert.equal(harness.calls.sent.length, 0);
 assert.equal(harness.chatInput.props.text, "Anuluj wysłanie");
 
 harness.plugin.onUnload();
-assert.equal(harness.calls.unpatches, 2);
+assert.equal(harness.calls.unpatches, 3);
 
 console.log("Runtime module lookup and patch registration: passed");
 console.log("Automatic composer warm-up: passed");
+console.log("Direct ChatInputActions mount: passed");
 console.log("Protected Discord syntax round trip: passed");
 console.log("Long-message chunking: passed");
 console.log("Automatic source language request: passed");
@@ -483,4 +557,4 @@ console.log("Polish target language request: passed");
 console.log("Auto Translate bypass: passed");
 console.log("Network error fallback: passed");
 console.log("Cancel keeps the message unsent: passed");
-console.log("onUnload removed both patches: passed");
+console.log("onUnload removed all patches: passed");
