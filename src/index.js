@@ -185,9 +185,7 @@ async function translateText(
   };
 }const settings = plugin.storage;
 let ChatInputGuardWrapper;
-let ChatInput;
 let ChatInputUtils;
-let DraftManager;
 let Messaging;
 let SelectedChannelStore;
 let ChannelStore;
@@ -204,35 +202,12 @@ let composerNativeWakeAttempted = false;
 let directComposerMounted = false;
 let unpatches = [];
 let runtimeStatus = "Not started";
-let d1LastComposerSignature = "";
 
-function d1(event, details = {}) {
-  try {
-    _vendetta.logger.log(`[POT:D1] ${event} ${JSON.stringify(details)}`);
-  } catch (error) {
-    try {
-      _vendetta.logger.error(`[POT:D1] logging failed: ${String(error)}`);
-    } catch {}
-  }
-}
-
-function d1Length(value) {
-  return typeof value === "string" ? value.length : -1;
-}
-
-function d1Sample(value) {
-  return typeof value === "string" ? value.slice(0, 80) : "";
-}
 function resolveDiscordModules() {
   try {
     ChatInputGuardWrapper = metro.findByName("ChatInputGuardWrapper", false);
   } catch (error) {
     _vendetta.logger.error("Chat input module lookup failed", error);
-  }
-  try {
-    ChatInput = metro.findByName("ChatInput", false);
-  } catch (error) {
-    _vendetta.logger.error("ChatInput module lookup failed", error);
   }
   try {
     ChatInputUtils =
@@ -250,11 +225,6 @@ function resolveDiscordModules() {
     );
   }
 
-  try {
-    DraftManager = metro.findByProps("clearDraft", "saveDraft");
-  } catch (error) {
-    _vendetta.logger.error("DraftManager lookup failed", error);
-  }
   try {
     Messaging = metro.findByProps("sendMessage", "editMessage") ?? metro.findByProps("sendMessage");
   } catch (error) {
@@ -302,20 +272,9 @@ function emitComposerRefreshStore(name, store) {
   try {
     store.emitChange();
 
-    d1("autoMount:emit", {
-      store: name,
-      success: true
-    });
 
     return true;
   } catch (error) {
-    d1("autoMount:emitError", {
-      store: name,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error)
-    });
 
     return false;
   }
@@ -334,32 +293,8 @@ function inspectNativeComposerHandle(attempt, id) {
         ?.() ??
       null;
   } catch (error) {
-    d1("autoMount:nativeHandleError", {
-      attempt,
-      id,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error)
-    });
   }
 
-  d1("autoMount:nativeHandle", {
-    attempt,
-    id,
-    utilsFound: Boolean(ChatInputUtils),
-    handleFound: Boolean(handle),
-    getText: typeof handle?.getText,
-    setText: typeof handle?.setText,
-    handleTextChanged:
-      typeof handle?.handleTextChanged,
-    showSideActions:
-      typeof handle?.showSideActions,
-    hideSideActions:
-      typeof handle?.hideSideActions,
-    focus: typeof handle?.focus,
-    blur: typeof handle?.blur
-  });
 
   return handle;
 }
@@ -374,15 +309,6 @@ function wakeNativeComposer(attempt, id, handle) {
     typeof handle.hideSideActions !== "function" ||
     typeof handle.showSideActions !== "function"
   ) {
-    d1("autoMount:nativeWakeUnavailable", {
-      attempt,
-      id,
-      handleFound: Boolean(handle),
-      hideSideActions:
-        typeof handle?.hideSideActions,
-      showSideActions:
-        typeof handle?.showSideActions
-    });
 
     return false;
   }
@@ -392,21 +318,10 @@ function wakeNativeComposer(attempt, id, handle) {
   const draftBefore =
     DraftStore?.getDraft?.(id, 0) ?? "";
 
-  d1("autoMount:nativeWakeStart", {
-    attempt,
-    id,
-    draftLength: d1Length(draftBefore),
-    composerInjectionCount
-  });
 
   try {
     handle.hideSideActions();
 
-    d1("autoMount:nativeWakeHide", {
-      attempt,
-      id,
-      success: true
-    });
 
     setTimeout(() => {
       try {
@@ -415,36 +330,12 @@ function wakeNativeComposer(attempt, id, handle) {
         const draftAfter =
           DraftStore?.getDraft?.(id, 0) ?? "";
 
-        d1("autoMount:nativeWakeShow", {
-          attempt,
-          id,
-          success: true,
-          draftUnchanged:
-            draftBefore === draftAfter,
-          composerInjectionCount
-        });
       } catch (error) {
-        d1("autoMount:nativeWakeShowError", {
-          attempt,
-          id,
-          message:
-            error instanceof Error
-              ? error.message
-              : String(error)
-        });
       }
     }, 40);
 
     return true;
   } catch (error) {
-    d1("autoMount:nativeWakeHideError", {
-      attempt,
-      id,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error)
-    });
 
     composerNativeWakeAttempted = false;
     return false;
@@ -453,10 +344,6 @@ function wakeNativeComposer(attempt, id, handle) {
 
 function requestComposerAutoMount(attempt) {
   if (composerInjectionCount > 0) {
-    d1("autoMount:alreadyInjected", {
-      attempt,
-      composerInjectionCount
-    });
 
     clearComposerAutoMountTimers();
     return;
@@ -465,9 +352,6 @@ function requestComposerAutoMount(attempt) {
   const id = channelId();
 
   if (!id) {
-    d1("autoMount:noChannel", {
-      attempt
-    });
 
     return;
   }
@@ -519,14 +403,6 @@ function requestComposerAutoMount(attempt) {
   const draftAfter =
     DraftStore?.getDraft?.(id, 0) ?? "";
 
-  d1("autoMount:attempt", {
-    attempt,
-    id,
-    emittedStores,
-    draftLength: d1Length(draftBefore),
-    draftUnchanged: draftBefore === draftAfter,
-    composerInjectionCount
-  });
 }
 
 function scheduleComposerAutoMount() {
@@ -541,10 +417,6 @@ function scheduleComposerAutoMount() {
     3500
   ];
 
-  d1("autoMount:schedule", {
-    attempts: delays.length,
-    delays
-  });
 
   delays.forEach((delay, index) => {
     const timer = setTimeout(() => {
@@ -556,137 +428,83 @@ function scheduleComposerAutoMount() {
 }
 
 function setComposerText(id, text, inputProps) {
-  const inputRef = inputRefByChannel.get(id);
-  const liveInput = inputRef?.current;
-  const snapshotInput = inputProps ?? inputByChannel.get(id);
-  const draftBefore = DraftStore?.getDraft?.(id, 0) ?? "";
+  const inputRef =
+    inputRefByChannel.get(id);
 
-  d1("setComposerText:before", {
-    id,
-    textLength: d1Length(text),
-    draftBeforeLength: d1Length(draftBefore),
-    chatInputPropsObject: Boolean(ChatInput?.props && typeof ChatInput.props === "object"),
-    refFound: Boolean(inputRef),
-    liveCurrentFound: Boolean(liveInput),
-    snapshotHandleTextChanged: typeof snapshotInput?.handleTextChanged,
-    snapshotSetText: typeof snapshotInput?.setText,
-    liveHandleTextChanged: typeof liveInput?.handleTextChanged,
-    liveSetText: typeof liveInput?.setText,
-    liveEqualsSnapshot: liveInput ? liveInput === snapshotInput : null,
-    draftStoreSetDraft: typeof DraftStore?.setDraft,
-    draftManagerSaveDraft: typeof DraftManager?.saveDraft
-  });
+  const liveInput =
+    inputRef?.current;
 
-  try {
-    if (ChatInput?.props && typeof ChatInput.props === "object") {
-      ChatInput.props.text = text;
+  const snapshotInput =
+    inputProps ??
+    inputByChannel.get(id);
 
-      const draftAfter = DraftStore?.getDraft?.(id, 0) ?? "";
+  const candidates = [];
 
-      d1("setComposerText:ChatInput.props", {
-        assignmentMatches: ChatInput.props.text === text,
-        draftAfterLength: d1Length(draftAfter),
-        draftMatchesRequested: draftAfter === text
-      });
-
-      setTimeout(() => {
-        const delayedDraft = DraftStore?.getDraft?.(id, 0) ?? "";
-
-        d1("setComposerText:afterTick", {
-          draftLength: d1Length(delayedDraft),
-          draftMatchesRequested: delayedDraft === text
-        });
-      }, 50);
-
-      return true;
-    }
-  } catch (error) {
-    _vendetta.logger.error("ChatInput text update failed", error);
+  if (liveInput) {
+    candidates.push(liveInput);
   }
 
-  if (typeof liveInput?.setText === "function") {
-    try {
-      d1("setComposerText:liveSetText:before", {
-        id,
-        requestedLength: d1Length(text),
-        draftBeforeLength: d1Length(DraftStore?.getDraft?.(id, 0) ?? ""),
-        refStillCurrent: inputRef?.current === liveInput
-      });
+  if (
+    snapshotInput &&
+    snapshotInput !== liveInput
+  ) {
+    candidates.push(snapshotInput);
+  }
 
-      liveInput.setText(text);
+  for (const candidate of candidates) {
+    const hasDraftUpdater =
+      typeof candidate?.handleTextChanged ===
+      "function";
 
-      const draftAfterSetText = DraftStore?.getDraft?.(id, 0) ?? "";
+    const hasVisualUpdater =
+      typeof candidate?.setText ===
+      "function";
 
-      d1("setComposerText:liveSetText:after", {
-        id,
-        draftAfterLength: d1Length(draftAfterSetText),
-        draftMatchesRequested: draftAfterSetText === text,
-        refStillCurrent: inputRef?.current === liveInput
-      });
+    if (
+      !hasDraftUpdater &&
+      !hasVisualUpdater
+    ) {
+      continue;
+    }
 
-      setTimeout(() => {
-        const currentInput = inputRef?.current;
-        const draftAfterTick = DraftStore?.getDraft?.(id, 0) ?? "";
+    let draftUpdated =
+      !hasDraftUpdater;
 
-        d1("setComposerText:liveSetText:afterTick0", {
-          id,
-          draftLength: d1Length(draftAfterTick),
-          draftMatchesRequested: draftAfterTick === text,
-          refStillCurrent: currentInput === liveInput,
-          currentSetText: typeof currentInput?.setText,
-          currentHandleTextChanged: typeof currentInput?.handleTextChanged
-        });
-      }, 0);
+    let visualUpdated =
+      !hasVisualUpdater;
 
-      setTimeout(() => {
-        const currentInput = inputRef?.current;
-        const draftAfterDelay = DraftStore?.getDraft?.(id, 0) ?? "";
+    if (hasDraftUpdater) {
+      try {
+        candidate.handleTextChanged(text);
+        draftUpdated = true;
+      } catch (error) {
+        _vendetta.logger.error(
+          "Composer draft update failed",
+          error
+        );
+      }
+    }
 
-        d1("setComposerText:liveSetText:after50ms", {
-          id,
-          draftLength: d1Length(draftAfterDelay),
-          draftMatchesRequested: draftAfterDelay === text,
-          refStillCurrent: currentInput === liveInput,
-          currentSetText: typeof currentInput?.setText,
-          currentHandleTextChanged: typeof currentInput?.handleTextChanged
-        });
-      }, 50);
+    if (hasVisualUpdater) {
+      try {
+        candidate.setText(text);
+        visualUpdated = true;
+      } catch (error) {
+        _vendetta.logger.error(
+          "Composer visual text update failed",
+          error
+        );
+      }
+    }
 
+    if (
+      draftUpdated &&
+      visualUpdated
+    ) {
       return true;
-    } catch (error) {
-      d1("setComposerText:liveSetText:error", {
-        id,
-        message: error instanceof Error ? error.message : String(error)
-      });
-
-      _vendetta.logger.error("Live composer setText failed", error);
     }
   }
 
-  const fallback = snapshotInput;
-
-  if (typeof fallback?.handleTextChanged === "function") {
-    try {
-      d1("setComposerText:fallback:before", {
-        method: "handleTextChanged"
-      });
-
-      fallback.handleTextChanged(text);
-
-      const draftAfter = DraftStore?.getDraft?.(id, 0) ?? "";
-
-      d1("setComposerText:fallback:after", {
-        draftAfterLength: d1Length(draftAfter),
-        draftMatchesRequested: draftAfter === text
-      });
-
-      return true;
-    } catch (error) {
-      _vendetta.logger.error("Legacy composer text update failed", error);
-    }
-  }
-
-  d1("setComposerText:noCompatibleMethod", { id });
   return false;
 }
 
@@ -716,15 +534,6 @@ function Preview({
   detectedSource,
   target
 }) {
-  d1("Preview:render", {
-    originalLength: d1Length(original),
-    translatedLength: d1Length(translated),
-    sourceMode: source,
-    detectedSource,
-    target,
-    originalSample: d1Sample(original),
-    translatedSample: d1Sample(translated)
-  });
 
   const renderPreviewBlock = (label, value, marginTop = 0) =>
     /* @__PURE__ */ common.React.createElement(
@@ -834,15 +643,6 @@ function requestManualChoice(
   detectedSource,
   target
 ) {
-  d1("manualChoice:open", {
-    originalLength: d1Length(original),
-    translatedLength: d1Length(translated),
-    sourceMode: source,
-    detectedSource,
-    target,
-    originalSample: d1Sample(original),
-    translatedSample: d1Sample(translated)
-  });
 
   return new Promise((resolve) => {
     alerts.showConfirmationAlert({
@@ -859,14 +659,10 @@ function requestManualChoice(
       ),
       confirmText: "Use translation",
       onConfirm: () => {
-        d1("manualChoice:onConfirm", {
-          translatedLength: d1Length(translated)
-        });
         resolve(true);
       },
       cancelText: "Keep original",
       onCancel: () => {
-        d1("manualChoice:onCancel", {});
         resolve(false);
       },
       isDismissable: false
@@ -911,14 +707,6 @@ async function translateDraft(inputProps) {
 
     const translated = translation.text;
 
-    d1("translateDraft:translated", {
-      id,
-      originalLength: d1Length(original),
-      translatedLength: d1Length(translated),
-      sourceMode: source,
-      detectedSource: translation.detectedSource,
-      translatedSample: d1Sample(translated)
-    });
 
     if (
       await requestManualChoice(
@@ -932,25 +720,11 @@ async function translateDraft(inputProps) {
       const inputRef = inputRefByChannel.get(id);
       const liveInput = inputRef?.current;
 
-      d1("translateDraft:confirmed", {
-        id,
-        refFound: Boolean(inputRef),
-        liveCurrentFound: Boolean(liveInput),
-        snapshotHandleTextChanged: typeof inputProps?.handleTextChanged,
-        snapshotSetText: typeof inputProps?.setText,
-        liveHandleTextChanged: typeof liveInput?.handleTextChanged,
-        liveSetText: typeof liveInput?.setText,
-        liveEqualsSnapshot: liveInput ? liveInput === inputProps : null
-      });
 
       manualBypass.set(id, translated);
 
       const updated = setComposerText(id, translated, inputProps);
 
-      d1("translateDraft:setResult", {
-        id,
-        updated
-      });
 
       if (!updated) {
         manualBypass.delete(id);
@@ -1118,13 +892,6 @@ function getNativeComposerHandle(id) {
       null
     );
   } catch (error) {
-    d1("directMount:handleError", {
-      id,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error)
-    });
 
     return null;
   }
@@ -1135,17 +902,10 @@ function patchComposerActions() {
     getRenderTarget("ChatInputActions");
 
   if (!found) {
-    d1("directMount:targetUnavailable", {
-      component: "ChatInputActions"
-    });
 
     return null;
   }
 
-  d1("directMount:targetFound", {
-    component: "ChatInputActions",
-    method: found.method
-  });
 
   return patcher.after(
     found.method,
@@ -1165,14 +925,6 @@ function patchComposerActions() {
         typeof inputProps.handleTextChanged
           !== "function"
       ) {
-        d1("directMount:noHandle", {
-          id,
-          handleFound:
-            Boolean(inputProps),
-          handleTextChanged:
-            typeof inputProps
-              ?.handleTextChanged
-        });
 
         return;
       }
@@ -1193,11 +945,6 @@ function patchComposerActions() {
         directComposerMounted = true;
         composerInjectionCount += 1;
 
-        d1("directMount:injected", {
-          id,
-          composerInjectionCount,
-          method: found.method
-        });
 
         clearComposerAutoMountTimers();
       }
@@ -1249,33 +996,7 @@ function patchComposer() {
 
     const children = targetNode?.props?.children;
 
-    const composerState = {
-      id: id ?? null,
-      refFound: Boolean(inputRef),
-      currentFound: Boolean(inputProps),
-      handleTextChanged: typeof inputProps?.handleTextChanged,
-      setText: typeof inputProps?.setText,
-      rootChildrenArray: Array.isArray(result?.props?.children),
-      targetViewFound: Boolean(targetNode),
-      targetChildCount: Array.isArray(children) ? children.length : -1,
-      translatorAlreadyInjected: Boolean(
-        Array.isArray(children) &&
-        children.some((child) => child?.key === "polish-outgoing-translator")
-      )
-    };
-
-    const composerSignature = JSON.stringify(composerState);
-
-    if (composerSignature !== d1LastComposerSignature) {
-      d1LastComposerSignature = composerSignature;
-      d1("patchComposer:state", composerState);
-    }
-
     if (directComposerMounted) {
-      d1("patchComposer:fallbackSkipped", {
-        id,
-        reason: "direct composer mount active"
-      });
 
       return;
     }
@@ -1296,10 +1017,6 @@ function patchComposer() {
 
     composerInjectionCount += 1;
 
-    d1("autoMount:injected", {
-      id,
-      composerInjectionCount
-    });
 
     clearComposerAutoMountTimers();
   });
@@ -1337,12 +1054,6 @@ function patchSending() {
 
       const translated = translation.text;
 
-      d1("patchSending:translated", {
-        id,
-        sourceMode: effective.source,
-        detectedSource: translation.detectedSource,
-        target: effective.target
-      });
 
       const choice = await requestSendChoice(
         originalText,

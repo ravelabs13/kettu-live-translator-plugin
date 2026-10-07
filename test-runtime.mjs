@@ -13,6 +13,7 @@ function createHarness() {
     sent: [],
     storeEmits: [],
     nativeWake: [],
+    composerSync: [],
     directMountResult: null,
     toasts: [],
     unpatches: 0
@@ -31,20 +32,33 @@ function createHarness() {
     default() {}
   };
 
-  const ChatInput = {
-    props: {
-      text: ""
-    }
-  };
-
   const Messaging = {
     sendMessage() {}
   };
 
+  let draftText = "";
+  let nativeText = "";
+
   const NativeComposerHandle = {
-    getText: () => "",
-    setText() {},
-    handleTextChanged() {},
+    getText: () => nativeText,
+
+    setText(text) {
+      nativeText = text;
+
+      calls.composerSync.push([
+        "setText",
+        text
+      ]);
+    },
+
+    handleTextChanged(text) {
+      draftText = text;
+
+      calls.composerSync.push([
+        "handleTextChanged",
+        text
+      ]);
+    },
     hideSideActions: () =>
       calls.nativeWake.push("hide"),
     showSideActions: () => {
@@ -86,7 +100,7 @@ function createHarness() {
         calls.storeEmits.push("ChannelStore")
     },
     DraftStore: {
-      getDraft: () => "",
+      getDraft: () => draftText,
       emitChange: () =>
         calls.storeEmits.push("DraftStore")
     },
@@ -142,10 +156,6 @@ function createHarness() {
         if (
           name === "ChatInputActions"
         ) return ChatInputActions;
-
-        if (
-          name === "ChatInput"
-        ) return ChatInput;
 
         return undefined;
       },
@@ -247,7 +257,20 @@ function createHarness() {
 
   return {
     calls,
-    chatInput: ChatInput,
+
+    getDraftText() {
+      return draftText;
+    },
+
+    getNativeText() {
+      return nativeText;
+    },
+
+    setComposerState(value) {
+      draftText = value;
+      nativeText = value;
+    },
+
     plugin,
     storage: pluginStorage,
     resetCalls() {
@@ -255,6 +278,7 @@ function createHarness() {
       calls.fetchRequests.length = 0;
       calls.confirmations.length = 0;
       calls.sent.length = 0;
+      calls.composerSync.length = 0;
     },
     async send(content) {
       const hook = calls.patches.sending?.callback;
@@ -316,42 +340,6 @@ assert.equal(
 
 assert.ok(
   harness.calls.directMountResult
-);
-
-assert.ok(
-  harness.calls.logs.some(
-    (entry) =>
-      String(entry[1]).includes(
-        "directMount:injected"
-      )
-  )
-);
-
-assert.ok(
-  harness.calls.logs.some(
-    (entry) =>
-      String(entry[1]).includes(
-        "autoMount:nativeWakeStart"
-      )
-  )
-);
-
-assert.ok(
-  harness.calls.logs.some(
-    (entry) =>
-      String(entry[1]).includes(
-        "autoMount:nativeWakeShow"
-      )
-  )
-);
-
-assert.ok(
-  harness.calls.logs.some(
-    (entry) =>
-      String(entry[1]).includes(
-        "autoMount:attempt"
-      )
-  )
 );
 
 assert.equal(harness.storage.sourceLanguage, "auto");
@@ -535,12 +523,44 @@ assert.equal(harness.calls.sent[0][1].content, "Błąd sieci");
 harness.resetCalls();
 harness.setFetchMode("echo");
 harness.setConfirmation("cancel");
-harness.chatInput.props.text = "";
-await harness.send("Anuluj wysłanie");
-await new Promise((resolve) => setTimeout(resolve, 0));
+harness.setComposerState("");
 
-assert.equal(harness.calls.sent.length, 0);
-assert.equal(harness.chatInput.props.text, "Anuluj wysłanie");
+await harness.send(
+  "Anuluj wysłanie"
+);
+
+await new Promise(
+  (resolve) => setTimeout(resolve, 0)
+);
+
+assert.equal(
+  harness.calls.sent.length,
+  0
+);
+
+assert.equal(
+  harness.getDraftText(),
+  "Anuluj wysłanie"
+);
+
+assert.equal(
+  harness.getNativeText(),
+  "Anuluj wysłanie"
+);
+
+assert.deepEqual(
+  harness.calls.composerSync.slice(-2),
+  [
+    [
+      "handleTextChanged",
+      "Anuluj wysłanie"
+    ],
+    [
+      "setText",
+      "Anuluj wysłanie"
+    ]
+  ]
+);
 
 harness.plugin.onUnload();
 assert.equal(harness.calls.unpatches, 3);
@@ -556,5 +576,5 @@ console.log("Preview source metadata and labels: passed");
 console.log("Polish target language request: passed");
 console.log("Auto Translate bypass: passed");
 console.log("Network error fallback: passed");
-console.log("Cancel keeps the message unsent: passed");
+console.log("Cancel restores DraftStore and native composer: passed");
 console.log("onUnload removed all patches: passed");
