@@ -404,10 +404,28 @@ function restoreDraft(id, original) {
     }
   }, 0);
 }
-function Preview({ original, translated, target }) {
+function previewSourceLabel(source, detectedSource) {
+  if (source === "auto") {
+    return detectedSource
+      ? `${languageName(detectedSource)} · detected`
+      : "Original · auto-detect";
+  }
+
+  return `${languageName(source)} source`;
+}
+
+function Preview({
+  original,
+  translated,
+  source,
+  detectedSource,
+  target
+}) {
   d1("Preview:render", {
     originalLength: d1Length(original),
     translatedLength: d1Length(translated),
+    sourceMode: source,
+    detectedSource,
     target,
     originalSample: d1Sample(original),
     translatedSample: d1Sample(translated)
@@ -473,7 +491,10 @@ function Preview({ original, translated, target }) {
       },
       keyboardShouldPersistTaps: "handled"
     },
-    renderPreviewBlock("Polish original", original),
+    renderPreviewBlock(
+      previewSourceLabel(source, detectedSource),
+      original
+    ),
     renderPreviewBlock(
       `${languageName(target)} translation`,
       translated,
@@ -481,11 +502,26 @@ function Preview({ original, translated, target }) {
     )
   );
 }
-function requestSendChoice(original, translated, target) {
+function requestSendChoice(
+  original,
+  translated,
+  source,
+  detectedSource,
+  target
+) {
   return new Promise((resolve) => {
     alerts.showConfirmationAlert({
       title: "Review translation",
-      content: /* @__PURE__ */ common.React.createElement(Preview, { original, translated, target }),
+      content: /* @__PURE__ */ common.React.createElement(
+        Preview,
+        {
+          original,
+          translated,
+          source,
+          detectedSource,
+          target
+        }
+      ),
       confirmText: "Send translation",
       onConfirm: () => resolve("translated"),
       secondaryConfirmText: "Send original",
@@ -496,10 +532,18 @@ function requestSendChoice(original, translated, target) {
     });
   });
 }
-function requestManualChoice(original, translated, target) {
+function requestManualChoice(
+  original,
+  translated,
+  source,
+  detectedSource,
+  target
+) {
   d1("manualChoice:open", {
     originalLength: d1Length(original),
     translatedLength: d1Length(translated),
+    sourceMode: source,
+    detectedSource,
     target,
     originalSample: d1Sample(original),
     translatedSample: d1Sample(translated)
@@ -508,7 +552,16 @@ function requestManualChoice(original, translated, target) {
   return new Promise((resolve) => {
     alerts.showConfirmationAlert({
       title: "Review translation",
-      content: /* @__PURE__ */ common.React.createElement(Preview, { original, translated, target }),
+      content: /* @__PURE__ */ common.React.createElement(
+        Preview,
+        {
+          original,
+          translated,
+          source,
+          detectedSource,
+          target
+        }
+      ),
       confirmText: "Use translation",
       onConfirm: () => {
         d1("manualChoice:onConfirm", {
@@ -530,7 +583,7 @@ function requestErrorChoice(error) {
   return new Promise((resolve) => {
     alerts.showConfirmationAlert({
       title: "Translation failed",
-      content: `The Polish original is safe. ${message}`,
+      content: `The original message is safe. ${message}`,
       confirmText: "Send original",
       onConfirm: () => resolve("original"),
       cancelText: "Keep draft",
@@ -572,7 +625,15 @@ async function translateDraft(inputProps) {
       translatedSample: d1Sample(translated)
     });
 
-    if (await requestManualChoice(original, translated, target)) {
+    if (
+      await requestManualChoice(
+        original,
+        translated,
+        source,
+        translation.detectedSource,
+        target
+      )
+    ) {
       const inputRef = inputRefByChannel.get(id);
       const liveInput = inputRef?.current;
 
@@ -791,6 +852,8 @@ function patchSending() {
       const choice = await requestSendChoice(
         originalText,
         translated,
+        effective.source,
+        translation.detectedSource,
         effective.target
       );
       if (choice === "translated") {

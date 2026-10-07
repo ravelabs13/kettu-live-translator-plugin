@@ -7,6 +7,7 @@ function createHarness() {
   const calls = {
     fetchQueries: [],
     fetchRequests: [],
+    confirmations: [],
     logs: [],
     patches: {},
     sent: [],
@@ -83,6 +84,8 @@ function createHarness() {
     ui: {
       alerts: {
         showConfirmationAlert(options) {
+          calls.confirmations.push(options);
+
           if (confirmation === "confirm") options.onConfirm?.();
           else if (confirmation === "secondary") options.onConfirmSecondary?.();
           else options.onCancel?.();
@@ -150,6 +153,7 @@ function createHarness() {
     resetCalls() {
       calls.fetchQueries.length = 0;
       calls.fetchRequests.length = 0;
+      calls.confirmations.length = 0;
       calls.sent.length = 0;
     },
     async send(content) {
@@ -195,6 +199,48 @@ assert.equal(
   "en"
 );
 
+assert.equal(
+  harness.calls.confirmations.length,
+  1
+);
+
+const autoPreview =
+  harness.calls.confirmations[0].content;
+
+assert.equal(
+  autoPreview.props.source,
+  "auto"
+);
+
+assert.equal(
+  autoPreview.props.detectedSource,
+  "pl"
+);
+
+assert.equal(
+  autoPreview.props.target,
+  "en"
+);
+
+const autoPreviewTree =
+  autoPreview.type(autoPreview.props);
+
+assert.equal(
+  autoPreviewTree
+    .props.children[0]
+    .props.children[0]
+    .props.children[0],
+  "Polish · detected"
+);
+
+assert.equal(
+  autoPreviewTree
+    .props.children[1]
+    .props.children[0]
+    .props.children[0],
+  "English translation"
+);
+
 harness.resetCalls();
 const longMessage = "ą".repeat(1301);
 await harness.send(longMessage);
@@ -234,6 +280,43 @@ assert.equal(
 assert.equal(
   harness.calls.fetchRequests[0].target,
   "en"
+);
+
+assert.equal(
+  harness.calls.confirmations.length,
+  1
+);
+
+const manualPreview =
+  harness.calls.confirmations[0].content;
+
+assert.equal(
+  manualPreview.props.source,
+  "de"
+);
+
+assert.equal(
+  manualPreview.props.detectedSource,
+  "de"
+);
+
+const manualPreviewTree =
+  manualPreview.type(manualPreview.props);
+
+assert.equal(
+  manualPreviewTree
+    .props.children[0]
+    .props.children[0]
+    .props.children[0],
+  "German source"
+);
+
+assert.equal(
+  manualPreviewTree
+    .props.children[1]
+    .props.children[0]
+    .props.children[0],
+  "English translation"
 );
 
 harness.storage.sourceLanguage = "auto";
@@ -292,6 +375,7 @@ console.log("Protected Discord syntax round trip: passed");
 console.log("Long-message chunking: passed");
 console.log("Automatic source language request: passed");
 console.log("Manual source language request: passed");
+console.log("Preview source metadata and labels: passed");
 console.log("Polish target language request: passed");
 console.log("Auto Translate bypass: passed");
 console.log("Network error fallback: passed");
