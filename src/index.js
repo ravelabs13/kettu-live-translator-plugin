@@ -124,7 +124,6 @@ let SelectedChannelStore;
 let ChannelStore;
 let DraftStore;
 const { FormRow, FormRadioRow, FormSwitchRow } = components.Forms ?? {};
-const CompatibleCodeblock = components.Codeblock;
 const CompatibleSearch = components.Search;
 const inputByChannel = /* @__PURE__ */ new Map();
 const inputRefByChannel = /* @__PURE__ */ new Map();
@@ -351,7 +350,73 @@ function Preview({ original, translated, target }) {
     translatedSample: d1Sample(translated)
   });
 
-  return /* @__PURE__ */ common.React.createElement(common.ReactNative.ScrollView, { style: { maxHeight: common.ReactNative.Dimensions.get("window").height * 0.62 } }, /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { marginBottom: 6, fontWeight: "700" } }, "Polish original"), /* @__PURE__ */ common.React.createElement(CompatibleCodeblock, null, original), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { marginTop: 14, marginBottom: 6, fontWeight: "700" } }, languageName(target), " translation"), /* @__PURE__ */ common.React.createElement(CompatibleCodeblock, null, translated));
+  const renderPreviewBlock = (label, value, marginTop = 0) =>
+    /* @__PURE__ */ common.React.createElement(
+      common.ReactNative.View,
+      {
+        style: {
+          marginTop
+        }
+      },
+      /* @__PURE__ */ common.React.createElement(
+        common.ReactNative.Text,
+        {
+          style: {
+            color: "#b5bac1",
+            fontSize: 12,
+            fontWeight: "700",
+            marginBottom: 7,
+            textTransform: "uppercase"
+          }
+        },
+        label
+      ),
+      /* @__PURE__ */ common.React.createElement(
+        common.ReactNative.View,
+        {
+          style: {
+            backgroundColor: "#111214",
+            borderColor: "#3f4147",
+            borderRadius: 8,
+            borderWidth: 1,
+            paddingHorizontal: 12,
+            paddingVertical: 11
+          }
+        },
+        /* @__PURE__ */ common.React.createElement(
+          common.ReactNative.Text,
+          {
+            selectable: true,
+            style: {
+              color: "#f2f3f5",
+              fontSize: 16,
+              lineHeight: 22
+            }
+          },
+          value
+        )
+      )
+    );
+
+  return /* @__PURE__ */ common.React.createElement(
+    common.ReactNative.ScrollView,
+    {
+      style: {
+        maxHeight: common.ReactNative.Dimensions.get("window").height * 0.62
+      },
+      contentContainerStyle: {
+        paddingBottom: 4,
+        paddingTop: 4
+      },
+      keyboardShouldPersistTaps: "handled"
+    },
+    renderPreviewBlock("Polish original", original),
+    renderPreviewBlock(
+      `${languageName(target)} translation`,
+      translated,
+      16
+    )
+  );
 }
 function requestSendChoice(original, translated, target) {
   return new Promise((resolve) => {
