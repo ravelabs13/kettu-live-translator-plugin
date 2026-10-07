@@ -186,6 +186,7 @@ async function translateText(
 }const settings = plugin.storage;
 let ChatInputGuardWrapper;
 let ChatInput;
+let ChatInputUtils;
 let DraftManager;
 let Messaging;
 let SelectedChannelStore;
@@ -231,6 +232,22 @@ function resolveDiscordModules() {
   } catch (error) {
     _vendetta.logger.error("ChatInput module lookup failed", error);
   }
+  try {
+    ChatInputUtils =
+      metro.findByProps(
+        "getBestActiveInputForChannelId"
+      ) ??
+      metro.findByProps(
+        "getBestActiveInput",
+        "getChatInputRef"
+      );
+  } catch (error) {
+    _vendetta.logger.error(
+      "ChatInputUtils lookup failed",
+      error
+    );
+  }
+
   try {
     DraftManager = metro.findByProps("clearDraft", "saveDraft");
   } catch (error) {
@@ -302,6 +319,49 @@ function emitComposerRefreshStore(name, store) {
   }
 }
 
+function inspectNativeComposerHandle(attempt, id) {
+  let handle = null;
+
+  try {
+    handle =
+      ChatInputUtils
+        ?.getBestActiveInputForChannelId
+        ?.(id) ??
+      ChatInputUtils
+        ?.getBestActiveInput
+        ?.() ??
+      null;
+  } catch (error) {
+    d1("autoMount:nativeHandleError", {
+      attempt,
+      id,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error)
+    });
+  }
+
+  d1("autoMount:nativeHandle", {
+    attempt,
+    id,
+    utilsFound: Boolean(ChatInputUtils),
+    handleFound: Boolean(handle),
+    getText: typeof handle?.getText,
+    setText: typeof handle?.setText,
+    handleTextChanged:
+      typeof handle?.handleTextChanged,
+    showSideActions:
+      typeof handle?.showSideActions,
+    hideSideActions:
+      typeof handle?.hideSideActions,
+    focus: typeof handle?.focus,
+    blur: typeof handle?.blur
+  });
+
+  return handle;
+}
+
 function requestComposerAutoMount(attempt) {
   if (composerInjectionCount > 0) {
     d1("autoMount:alreadyInjected", {
@@ -322,6 +382,11 @@ function requestComposerAutoMount(attempt) {
 
     return;
   }
+
+  inspectNativeComposerHandle(
+    attempt,
+    id
+  );
 
   const draftBefore =
     DraftStore?.getDraft?.(id, 0) ?? "";
