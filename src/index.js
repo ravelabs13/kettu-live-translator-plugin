@@ -97,6 +97,12 @@ function sourceLanguageName(code) {
     : languageName(code);
 }
 
+function sourceLanguageCode(code) {
+  return code === "auto"
+    ? "AUTO"
+    : String(code).toUpperCase();
+}
+
 async function translateChunk(text, targetLanguage, sourceLanguage = "auto") {
   const query = new URLSearchParams({
     client: "gtx",
@@ -724,8 +730,8 @@ function TranslateButton({ inputProps }) {
     /* @__PURE__ */ common.React.createElement(
       common.ReactNative.Pressable,
       {
-        accessibilityLabel: `Translate Polish to ${languageName(effective.target)}`,
-        accessibilityHint: "Tap an empty button to choose a language. Type text and tap to translate. Hold to toggle automatic translation.",
+        accessibilityLabel: `Translate from ${sourceLanguageName(effective.source)} to ${languageName(effective.target)}`,
+        accessibilityHint: "Type a message and tap to translate. Tap the empty button to choose the target language. Hold to toggle automatic translation.",
         disabled: pendingChannels.has(id ?? ""),
         onPress: () => hasText ? void translateDraft(inputProps) : openTargetPicker(),
         onLongPress: toggleAutoForChannel,
@@ -743,7 +749,17 @@ function TranslateButton({ inputProps }) {
           opacity: hasText ? 1 : 0.72
         }
       },
-      /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 12, fontWeight: "700" } }, `PL\u2192${effective.target.toUpperCase()}`),
+      /* @__PURE__ */ common.React.createElement(
+        common.ReactNative.Text,
+        {
+          style: {
+            color: "#ffffff",
+            fontSize: 12,
+            fontWeight: "700"
+          }
+        },
+        `${sourceLanguageCode(effective.source)}\u2192${effective.target.toUpperCase()}`
+      ),
       /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { color: "#ffffff", fontSize: 8 } }, effective.auto ? "AUTO ON" : hasText ? "TRANSLATE" : "LANGUAGE")
     )
   );
@@ -1088,7 +1104,7 @@ function Settings() {
         render: () => /* @__PURE__ */ common.React.createElement(LanguagePicker, { selectedChannelId: id })
       })
     }
-  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap an empty PL\u2192LANG button to choose the target language. Type a message and tap it for manual translation. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."), /* @__PURE__ */ common.React.createElement(FormRow, { label: "Runtime status", subLabel: runtimeStatus }));
+  )), /* @__PURE__ */ common.React.createElement(common.ReactNative.Text, { style: { margin: 16, opacity: 0.7, lineHeight: 19 } }, "Tap an empty SOURCE\u2192TARGET button to choose the target language. Type a message and tap it for manual translation. AUTO means the source language is detected automatically. Hold it to toggle Auto Translate for the current channel. Mentions, links, emoji and code are protected from translation."), /* @__PURE__ */ common.React.createElement(FormRow, { label: "Runtime status", subLabel: runtimeStatus }));
 }
 var index = {
   onLoad() {
