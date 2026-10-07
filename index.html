@@ -1,38 +1,1045 @@
 <!doctype html>
-<html lang="pl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <title>Polish Outgoing Translator — Kettu/Bunny</title>
-    <style>
-      :root { font-family: system-ui, sans-serif; line-height: 1.55; }
-      body { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
-      code { overflow-wrap: anywhere; }
-      .url { padding: 14px; border: 1px solid #8886; border-radius: 10px; }
-      section { margin-top: 32px; }
-    </style>
-  </head>
-  <body>
-    <h1>Polish Outgoing Translator</h1>
-    <p>Plugin for KettuTweak/Bunny on iOS that translates outgoing Polish Discord messages before sending.</p>
-    <p><strong>Current version: 1.3.0</strong></p>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
 
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
 
-    <section lang="pl">
-      <h2>Instalacja</h2>
-      <ol>
-        <li>Skopiuj poniższy adres.</li>
-        <li>W Discordzie otwórz <strong>Ustawienia → Kettu → Plugins → +</strong>.</li>
-        <li>Wklej adres, zainstaluj plugin i włącz go.</li>
-        <li>Uruchom Discord ponownie. Pływający przycisk <strong>PL→EN</strong> pojawi się nad polem wiadomości.</li>
-        <li>Dotknij pustego przycisku, aby zmienić język. Wpisz tekst i dotknij go ponownie, aby przetłumaczyć.</li>
-      </ol>
-    </section>
+  <meta
+    name="color-scheme"
+    content="dark"
+  />
 
+  <meta
+    name="description"
+    content="Kettu Translate — universal real-time conversation translator for Kettu."
+  />
 
-    <section lang="en">
-      <h2>Installation</h2>
-      <ol>
-        <li>Copy the URL below.</li>
-        <li>In Discord open <strong>Settings → Kettu → Plugins → +</strong>.</li>
+  <title>
+    Kettu Translate — real-time conversation translator for Kettu
+  </title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+
+      --bg: #090a0c;
+      --bg-soft: #101216;
+      --card: #15181d;
+      --card-2: #1b1f25;
+      --border: rgba(255, 255, 255, 0.09);
+
+      --text: #f6f7f9;
+      --muted: #9ba1ab;
+      --accent: #ff453a;
+      --accent-soft: rgba(255, 69, 58, 0.13);
+      --green: #30d158;
+
+      --radius: 22px;
+      --radius-small: 14px;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        system-ui,
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(
+          circle at 15% 0%,
+          rgba(255, 69, 58, 0.12),
+          transparent 32rem
+        ),
+        var(--bg);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: var(--accent);
+      color: white;
+      font-size: 19px;
+      font-weight: 900;
+      box-shadow:
+        0 10px 35px rgba(255, 69, 58, 0.22);
+    }
+
+    .language-switch {
+      display: flex;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg-soft);
+    }
+
+    .language-switch button {
+      border: 0;
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .language-switch button.active {
+      color: white;
+      background: var(--card-2);
+    }
+
+    .hero {
+      padding: 86px 0 68px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+
+      padding: 8px 13px;
+      border-radius: 999px;
+
+      background: var(--accent-soft);
+      color: #ff8a83;
+
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 24px auto 20px;
+
+      font-size:
+        clamp(48px, 8vw, 88px);
+
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .hero p {
+      max-width: 720px;
+      margin: 0 auto;
+
+      color: var(--muted);
+      font-size: clamp(18px, 2.4vw, 23px);
+      line-height: 1.55;
+    }
+
+    .hero-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+
+      padding: 0 20px;
+      border-radius: 15px;
+
+      text-decoration: none;
+      font-weight: 750;
+
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .button.primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: white;
+    }
+
+    .translator-demo {
+      max-width: 680px;
+      margin: 50px auto 0;
+
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255,255,255,0.035),
+          rgba(255,255,255,0.012)
+        ),
+        var(--card);
+
+      text-align: left;
+    }
+
+    .message {
+      margin: 10px 0;
+      padding: 14px 16px;
+      border-radius: 18px;
+
+      background: var(--card-2);
+      line-height: 1.45;
+    }
+
+    .translator-button {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      min-width: 88px;
+      height: 46px;
+
+      margin-top: 14px;
+      padding: 0 14px;
+
+      border-radius: 23px;
+      background: #4e5058;
+
+      font-weight: 800;
+    }
+
+    .translator-button small {
+      margin-top: 1px;
+      font-size: 8px;
+      opacity: 0.85;
+    }
+
+    section {
+      padding: 64px 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+
+      font-size:
+        clamp(32px, 4.5vw, 48px);
+
+      letter-spacing: -0.035em;
+    }
+
+    .section-lead {
+      max-width: 700px;
+      margin: 0 0 30px;
+
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .not-feed {
+      padding: 30px;
+      border:
+        1px solid rgba(255, 69, 58, 0.24);
+
+      border-radius: 26px;
+      background: var(--accent-soft);
+    }
+
+    .not-feed strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+
+    .not-feed p {
+      margin: 0;
+      color: #d5d7dc;
+      line-height: 1.6;
+    }
+
+    .install-card {
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--card);
+    }
+
+    .steps {
+      display: grid;
+      gap: 14px;
+      margin: 26px 0;
+      counter-reset: install;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .step::before {
+      counter-increment: install;
+      content: counter(install);
+
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+
+      width: 30px;
+      height: 30px;
+
+      border-radius: 50%;
+      background: var(--card-2);
+      color: white;
+
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .plugin-url {
+      display: flex;
+      gap: 10px;
+
+      padding: 10px;
+      border-radius: 17px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+    }
+
+    .plugin-url code {
+      flex: 1;
+      padding: 9px 10px;
+
+      overflow-wrap: anywhere;
+
+      color: #d7dae0;
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        monospace;
+
+      font-size: 13px;
+    }
+
+    .copy {
+      flex: 0 0 auto;
+
+      border: 0;
+      padding: 0 16px;
+      border-radius: 12px;
+
+      color: white;
+      background: var(--accent);
+
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+
+      border-radius: 50%;
+      background: var(--green);
+
+      box-shadow:
+        0 0 15px rgba(48, 209, 88, 0.5);
+    }
+
+    .languages {
+      color: var(--muted);
+      line-height: 1.85;
+    }
+
+    footer {
+      padding: 56px 0 70px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    footer .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    footer a {
+      color: #d8dae0;
+    }
+
+    [data-language] {
+      display: none;
+    }
+
+    [data-language].active {
+      display: block;
+    }
+
+    @media (max-width: 800px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding-top: 56px;
+      }
+
+      header {
+        padding-top: 18px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .page {
+        width: min(
+          100% - 22px,
+          1120px
+        );
+      }
+
+      .plugin-url {
+        flex-direction: column;
+      }
+
+      .copy {
+        min-height: 42px;
+      }
+
+      .hero-buttons {
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <header>
+      <div class="brand">
+        <div class="logo">KT</div>
+        <span>Kettu Translate</span>
+      </div>
+
+      <div
+        class="language-switch"
+        aria-label="Language"
+      >
+        <button
+          type="button"
+          data-switch="en"
+          class="active"
+        >
+          EN
+        </button>
+
+        <button
+          type="button"
+          data-switch="pl"
+        >
+          PL
+        </button>
+      </div>
+    </header>
+
+    <!-- ENGLISH -->
+
+    <main
+      data-language="en"
+      class="active"
+    >
+      <section class="hero">
+        <div class="eyebrow">
+          Kettu · Discord · iOS
+        </div>
+
+        <h1>
+          Speak your language.
+          <br />
+          Kettu Translate handles the rest.
+        </h1>
+
+        <p>
+          A universal real-time conversation translator
+          built directly into the Discord composer.
+          Write naturally, review the translation and
+          continue the conversation.
+        </p>
+
+        <div class="hero-buttons">
+          <a
+            class="button primary"
+            href="#install-en"
+          >
+            Install Kettu Translate
+          </a>
+
+          <a
+            class="button"
+            href="README.md"
+          >
+            Documentation
+          </a>
+        </div>
+
+        <div class="translator-demo">
+          <div class="status">
+            <span class="dot"></span>
+            Real-time outgoing translation
+          </div>
+
+          <div class="message">
+            Cześć! Jak się dzisiaj masz?
+          </div>
+
+          <div class="translator-button">
+            AUTO→EN
+            <small>TRANSLATE</small>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="not-feed">
+          <strong>
+            Built for conversations — not the message feed.
+          </strong>
+
+          <p>
+            Kettu Translate translates the messages you write
+            while chatting. It does not automatically translate
+            posts, server history or messages written by other users.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Translate without leaving Discord.</h2>
+
+        <p class="section-lead">
+          The translator lives directly in the composer,
+          so multilingual conversations stay fast and natural.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <strong>Automatic detection</strong>
+            <p>
+              AUTO detects the language you are writing
+              before translating it to your selected target.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Review before sending</strong>
+            <p>
+              See the original and translated text before
+              deciding what should be sent.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>33 languages</strong>
+            <p>
+              Choose a fixed source language or let Kettu
+              Translate detect it automatically.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Per-channel targets</strong>
+            <p>
+              Use a global target or configure a different
+              language for individual conversations.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Auto Translate</strong>
+            <p>
+              Translate when pressing Send, with independent
+              ON/OFF overrides for individual channels.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Discord syntax protection</strong>
+            <p>
+              Mentions, URLs, custom emoji, timestamps and
+              code are protected during translation.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="install-en">
+        <h2>Installation</h2>
+
+        <p class="section-lead">
+          Kettu Translate was developed and tested on iOS
+          with the official Kettu project.
+        </p>
+
+        <div class="install-card">
+          <div class="steps">
+            <div class="step">
+              Open Discord and go to
+              Settings → Kettu → Plugins.
+            </div>
+
+            <div class="step">
+              Tap the + button.
+            </div>
+
+            <div class="step">
+              Paste the Kettu Translate plugin URL below.
+            </div>
+
+            <div class="step">
+              Install and enable the plugin.
+            </div>
+
+            <div class="step">
+              Fully restart Discord.
+            </div>
+
+            <div class="step">
+              Open a text channel.
+              AUTO→EN should appear automatically.
+            </div>
+          </div>
+
+          <div class="plugin-url">
+            <code id="plugin-url-en">https://raw.githubusercontent.com/ravelabs13/kettu-polish-translator-plugin/main/</code>
+
+            <button
+              class="copy"
+              type="button"
+              data-copy="plugin-url-en"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Supported languages</h2>
+
+        <p class="languages">
+          Polish · English · German · Spanish · French ·
+          Italian · Portuguese · Dutch · Swedish · Norwegian ·
+          Danish · Finnish · Czech · Slovak · Ukrainian ·
+          Russian · Turkish · Greek · Romanian · Hungarian ·
+          Bulgarian · Croatian · Serbian · Japanese · Korean ·
+          Chinese (Simplified) · Chinese (Traditional) · Arabic ·
+          Hebrew · Hindi · Indonesian · Vietnamese · Thai
+        </p>
+      </section>
+
+      <section>
+        <h2>Privacy</h2>
+
+        <p class="section-lead">
+          Translation requires an internet connection.
+          Text selected for translation is sent to the
+          Google Translate web translation endpoint used
+          by the plugin. Kettu Translate does not operate
+          its own translation server.
+        </p>
+      </section>
+    </main>
+
+    <!-- POLISH -->
+
+    <main data-language="pl">
+      <section class="hero">
+        <div class="eyebrow">
+          Kettu · Discord · iOS
+        </div>
+
+        <h1>
+          Pisz w swoim języku.
+          <br />
+          Kettu Translate zrobi resztę.
+        </h1>
+
+        <p>
+          Uniwersalny tłumacz rozmów na żywo,
+          działający bezpośrednio w polu wiadomości Discorda.
+          Pisz naturalnie, sprawdź tłumaczenie i kontynuuj rozmowę.
+        </p>
+
+        <div class="hero-buttons">
+          <a
+            class="button primary"
+            href="#install-pl"
+          >
+            Zainstaluj Kettu Translate
+          </a>
+
+          <a
+            class="button"
+            href="README_PL.md"
+          >
+            Dokumentacja
+          </a>
+        </div>
+
+        <div class="translator-demo">
+          <div class="status">
+            <span class="dot"></span>
+            Tłumaczenie wiadomości wychodzących
+          </div>
+
+          <div class="message">
+            Cześć! Jak się dzisiaj masz?
+          </div>
+
+          <div class="translator-button">
+            AUTO→EN
+            <small>TRANSLATE</small>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="not-feed">
+          <strong>
+            Do rozmów — nie do tłumaczenia feedu.
+          </strong>
+
+          <p>
+            Kettu Translate tłumaczy wiadomości, które piszesz
+            podczas rozmowy. Nie tłumaczy automatycznie postów,
+            historii serwera ani wiadomości innych użytkowników.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tłumacz bez wychodzenia z Discorda.</h2>
+
+        <p class="section-lead">
+          Translator znajduje się bezpośrednio przy polu wiadomości,
+          dlatego wielojęzyczna rozmowa pozostaje szybka i naturalna.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <strong>Automatyczne wykrywanie</strong>
+            <p>
+              AUTO rozpoznaje język, w którym piszesz,
+              i tłumaczy tekst na wybrany język docelowy.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Podgląd przed wysłaniem</strong>
+            <p>
+              Zobacz oryginał i tłumaczenie przed podjęciem
+              decyzji, co ma zostać wysłane.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>33 języki</strong>
+            <p>
+              Wybierz język źródłowy ręcznie albo pozostaw
+              automatyczne rozpoznawanie.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Język osobno dla kanału</strong>
+            <p>
+              Używaj celu globalnego albo ustaw inny język
+              dla konkretnej rozmowy.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Auto Translate</strong>
+            <p>
+              Tłumacz podczas naciskania Wyślij i ustawiaj
+              osobne ON/OFF dla poszczególnych kanałów.
+            </p>
+          </div>
+
+          <div class="card">
+            <strong>Ochrona składni Discorda</strong>
+            <p>
+              Wzmianki, linki, emoji, znaczniki czasu i kod
+              są chronione podczas tłumaczenia.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="install-pl">
+        <h2>Instalacja</h2>
+
+        <p class="section-lead">
+          Kettu Translate był tworzony i testowany na iOS
+          z oficjalnym projektem Kettu.
+        </p>
+
+        <div class="install-card">
+          <div class="steps">
+            <div class="step">
+              Otwórz Discord i przejdź do
+              Ustawienia → Kettu → Plugins.
+            </div>
+
+            <div class="step">
+              Naciśnij +.
+            </div>
+
+            <div class="step">
+              Wklej poniższy adres Kettu Translate.
+            </div>
+
+            <div class="step">
+              Zainstaluj i włącz plugin.
+            </div>
+
+            <div class="step">
+              Całkowicie uruchom ponownie Discorda.
+            </div>
+
+            <div class="step">
+              Wejdź na kanał tekstowy.
+              AUTO→EN powinien pojawić się automatycznie.
+            </div>
+          </div>
+
+          <div class="plugin-url">
+            <code id="plugin-url-pl">https://raw.githubusercontent.com/ravelabs13/kettu-polish-translator-plugin/main/</code>
+
+            <button
+              class="copy"
+              type="button"
+              data-copy="plugin-url-pl"
+            >
+              Kopiuj
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Obsługiwane języki</h2>
+
+        <p class="languages">
+          polski · angielski · niemiecki · hiszpański ·
+          francuski · włoski · portugalski · niderlandzki ·
+          szwedzki · norweski · duński · fiński · czeski ·
+          słowacki · ukraiński · rosyjski · turecki · grecki ·
+          rumuński · węgierski · bułgarski · chorwacki ·
+          serbski · japoński · koreański · chiński uproszczony ·
+          chiński tradycyjny · arabski · hebrajski · hindi ·
+          indonezyjski · wietnamski · tajski
+        </p>
+      </section>
+
+      <section>
+        <h2>Prywatność</h2>
+
+        <p class="section-lead">
+          Tłumaczenie wymaga połączenia z internetem.
+          Tekst przeznaczony do tłumaczenia jest wysyłany
+          do endpointu Google Translate używanego przez plugin.
+          Kettu Translate nie posiada własnego serwera tłumaczeń.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <strong>Kettu Translate · RaveLabs</strong>
+
+      <div class="links">
+        <a href="README.md">README EN</a>
+        <a href="README_PL.md">README PL</a>
+        <a href="TROUBLESHOOTING.md">Troubleshooting</a>
+        <a href="CHANGELOG.md">Changelog</a>
+
+        <a
+          href="https://github.com/C0C0B01/Kettu"
+          rel="noopener noreferrer"
+        >
+          Kettu
+        </a>
+      </div>
+
+      <p>
+        Independent plugin. Not affiliated with Discord,
+        Google or the Kettu project.
+      </p>
+    </footer>
+
+  </div>
+
+  <script>
+    (() => {
+      const switches =
+        document.querySelectorAll("[data-switch]");
+
+      const sections =
+        document.querySelectorAll("[data-language]");
+
+      function selectLanguage(language) {
+        sections.forEach((section) => {
+          section.classList.toggle(
+            "active",
+            section.dataset.language === language
+          );
+        });
+
+        switches.forEach((button) => {
+          button.classList.toggle(
+            "active",
+            button.dataset.switch === language
+          );
+        });
+
+        document.documentElement.lang = language;
+      }
+
+      switches.forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => selectLanguage(button.dataset.switch)
+        );
+      });
+
+      document
+        .querySelectorAll("[data-copy]")
+        .forEach((button) => {
+          button.addEventListener("click", async () => {
+            const target =
+              document.getElementById(
+                button.dataset.copy
+              );
+
+            const value =
+              target?.textContent?.trim();
+
+            if (!value) {
+              return;
+            }
+
+            try {
+              await navigator.clipboard.writeText(value);
+
+              const old =
+                button.textContent;
+
+              button.textContent =
+                document.documentElement.lang === "pl"
+                  ? "Skopiowano"
+                  : "Copied";
+
+              setTimeout(() => {
+                button.textContent = old;
+              }, 1400);
+            } catch {
+              window.prompt(
+                "Copy plugin URL:",
+                value
+              );
+            }
+          });
+        });
+    })();
+  </script>
+</body>
+</html>

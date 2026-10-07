@@ -1,14 +1,14 @@
 {
-  "name": "Polish Outgoing Translator",
-  "description": "Translates outgoing Polish messages before they are sent.",
+  "name": "Kettu Translate",
+  "description": "Universal real-time conversation translator for Kettu. Translate outgoing messages directly while chatting.",
   "authors": [
     {
-      "name": "Codex"
+      "name": "RaveLabs"
     }
   ],
   "main": "index.js",
   "vendetta": {
     "icon": "ic_locale_24px"
   },
-  "hash": "7193c1f9056b431d9dbb9720c649e040195f04db0242f2a05973e1eec93539fc"
+  "hash": "331bc56e2d45fbca15f3fc9573ebc88d33a206ec5125fe7e28e109bd80a9a584"
 }
