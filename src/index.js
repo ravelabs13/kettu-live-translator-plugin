@@ -87,34 +87,87 @@ function shouldTranslateMessage(message, effective, bypassText) {
 };
 function languageName(code) {
   return Object.entries(LANGUAGES).find(([, value]) => value === code)?.[0] ?? code;
-}async function translateChunk(text, targetLanguage) {
+}
+async function translateChunk(text, targetLanguage, sourceLanguage = "auto") {
   const query = new URLSearchParams({
     client: "gtx",
-    sl: "pl",
+    sl: sourceLanguage,
     tl: targetLanguage,
     dt: "t",
     dj: "1",
     source: "input",
     q: text
   });
+
   const response = await utils.safeFetch(
     `https://translate.googleapis.com/translate_a/single?${query}`,
     void 0,
     15e3
   );
-  if (!response.ok) throw new Error(`Translation service returned HTTP ${response.status}`);
+
+  if (!response.ok) {
+    throw new Error(`Translation service returned HTTP ${response.status}`);
+  }
+
   const data = await response.json();
-  const translated = data.sentences?.map((sentence) => sentence.trans ?? "").join("");
-  if (!translated) throw new Error("Translation service returned an empty result");
-  return translated;
+
+  const translated =
+    data.sentences
+      ?.map((sentence) => sentence.trans ?? "")
+      .join("") ?? "";
+
+  if (!translated) {
+    throw new Error("Translation service returned an empty result");
+  }
+
+  const detectedSource =
+    sourceLanguage === "auto" &&
+    typeof data.src === "string" &&
+    data.src
+      ? data.src
+      : sourceLanguage === "auto"
+        ? null
+        : sourceLanguage;
+
+  return {
+    translated,
+    detectedSource
+  };
 }
-async function translatePolish(text, targetLanguage) {
+
+async function translateText(
+  text,
+  targetLanguage,
+  sourceLanguage = "auto"
+) {
   const protectedText = protectDiscordSyntax(text);
   const translatedChunks = [];
+
+  let detectedSource =
+    sourceLanguage === "auto"
+      ? null
+      : sourceLanguage;
+
   for (const chunk of chunkText(protectedText.text)) {
-    translatedChunks.push(await translateChunk(chunk, targetLanguage));
+    const result = await translateChunk(
+      chunk,
+      targetLanguage,
+      sourceLanguage
+    );
+
+    translatedChunks.push(result.translated);
+
+    if (!detectedSource && result.detectedSource) {
+      detectedSource = result.detectedSource;
+    }
   }
-  return protectedText.restore(translatedChunks.join(""));
+
+  return {
+    text: protectedText.restore(
+      translatedChunks.join("")
+    ),
+    detectedSource
+  };
 }const settings = plugin.storage;
 let ChatInputGuardWrapper;
 let ChatInput;
@@ -492,12 +545,19 @@ async function translateDraft(inputProps) {
   pendingChannels.add(id);
   toasts.showToast(`Translating to ${languageName(target)}\u2026`);
   try {
-    const translated = await translatePolish(original, target);
+    const translation = await translateText(
+      original,
+      target,
+      "auto"
+    );
+
+    const translated = translation.text;
 
     d1("translateDraft:translated", {
       id,
       originalLength: d1Length(original),
       translatedLength: d1Length(translated),
+      detectedSource: translation.detectedSource,
       translatedSample: d1Sample(translated)
     });
 
@@ -696,8 +756,25 @@ function patchSending() {
     pendingChannels.add(id);
     toasts.showToast(`Translating to ${languageName(effective.target)}\u2026`);
     try {
-      const translated = await translatePolish(originalText, effective.target);
-      const choice = await requestSendChoice(originalText, translated, effective.target);
+      const translation = await translateText(
+        originalText,
+        effective.target,
+        "auto"
+      );
+
+      const translated = translation.text;
+
+      d1("patchSending:translated", {
+        id,
+        detectedSource: translation.detectedSource,
+        target: effective.target
+      });
+
+      const choice = await requestSendChoice(
+        originalText,
+        translated,
+        effective.target
+      );
       if (choice === "translated") {
         const translatedArgs = [...args];
         translatedArgs[1] = { ...message, content: translated };

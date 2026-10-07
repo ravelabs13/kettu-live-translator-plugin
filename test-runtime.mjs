@@ -6,6 +6,7 @@ const bundle = await readFile("index.js", "utf8");
 function createHarness() {
   const calls = {
     fetchQueries: [],
+    fetchRequests: [],
     logs: [],
     patches: {},
     sent: [],
@@ -102,13 +103,37 @@ function createHarness() {
     utils: {
       findInReactTree: () => undefined,
       async safeFetch(url) {
-        const query = new URL(url).searchParams.get("q");
+        const parsed = new URL(url);
+
+        const query = parsed.searchParams.get("q");
+        const source = parsed.searchParams.get("sl");
+        const target = parsed.searchParams.get("tl");
+
         calls.fetchQueries.push(query);
-        if (fetchMode === "error") throw new Error("offline");
+
+        calls.fetchRequests.push({
+          query,
+          source,
+          target
+        });
+
+        if (fetchMode === "error") {
+          throw new Error("offline");
+        }
+
         return {
           ok: true,
           async json() {
-            return { sentences: [{ trans: query }] };
+            return {
+              sentences: [
+                {
+                  trans: query
+                }
+              ],
+              src: source === "auto"
+                ? "pl"
+                : source
+            };
           }
         };
       }
@@ -124,6 +149,7 @@ function createHarness() {
     storage: pluginStorage,
     resetCalls() {
       calls.fetchQueries.length = 0;
+      calls.fetchRequests.length = 0;
       calls.sent.length = 0;
     },
     async send(content) {
@@ -158,12 +184,34 @@ await harness.send(protectedMessage);
 assert.equal(harness.calls.sent.length, 1);
 assert.equal(harness.calls.sent[0][1].content, protectedMessage);
 assert.equal(harness.calls.fetchQueries.length, 1);
+assert.equal(harness.calls.fetchRequests.length, 1);
+assert.equal(
+  harness.calls.fetchRequests[0].source,
+  "auto"
+);
+assert.equal(
+  harness.calls.fetchRequests[0].target,
+  "en"
+);
 
 harness.resetCalls();
 const longMessage = "ą".repeat(1301);
 await harness.send(longMessage);
 assert.equal(harness.calls.fetchQueries.length, 2);
-assert.equal(harness.calls.sent[0][1].content, longMessage);
+assert.equal(harness.calls.fetchRequests.length, 2);
+
+assert.ok(
+  harness.calls.fetchRequests.every(
+    (request) =>
+      request.source === "auto" &&
+      request.target === "en"
+  )
+);
+
+assert.equal(
+  harness.calls.sent[0][1].content,
+  longMessage
+);
 
 harness.resetCalls();
 harness.storage.autoTranslate = false;
@@ -193,6 +241,7 @@ assert.equal(harness.calls.unpatches, 2);
 console.log("Runtime module lookup and patch registration: passed");
 console.log("Protected Discord syntax round trip: passed");
 console.log("Long-message chunking: passed");
+console.log("Automatic source language request: passed");
 console.log("Auto Translate bypass: passed");
 console.log("Network error fallback: passed");
 console.log("Cancel keeps the message unsent: passed");
