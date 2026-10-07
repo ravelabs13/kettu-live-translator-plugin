@@ -12,6 +12,7 @@ function createHarness() {
     patches: {},
     sent: [],
     storeEmits: [],
+    nativeWake: [],
     toasts: [],
     unpatches: 0
   };
@@ -24,6 +25,26 @@ function createHarness() {
   const ChatInputGuardWrapper = { default() {} };
   const ChatInput = { props: { text: "" } };
   const Messaging = { sendMessage() {} };
+
+  const NativeComposerHandle = {
+    getText: () => "",
+    setText() {},
+    handleTextChanged() {},
+    hideSideActions: () =>
+      calls.nativeWake.push("hide"),
+    showSideActions: () =>
+      calls.nativeWake.push("show"),
+    focus() {},
+    blur() {}
+  };
+
+  const ChatInputUtils = {
+    getBestActiveInputForChannelId: () =>
+      NativeComposerHandle,
+    getBestActiveInput: () =>
+      NativeComposerHandle
+  };
+
   const stores = {
     ChannelStore: {
       getChannel: () => ({ name: "general" }),
@@ -84,7 +105,21 @@ function createHarness() {
         if (name === "ChatInput") return ChatInput;
         return undefined;
       },
-      findByProps: (...props) => props.includes("sendMessage") ? Messaging : undefined,
+      findByProps: (...props) => {
+        if (
+          props.includes(
+            "getBestActiveInputForChannelId"
+          )
+        ) {
+          return ChatInputUtils;
+        }
+
+        if (props.includes("sendMessage")) {
+          return Messaging;
+        }
+
+        return undefined;
+      },
       findByStoreName: (name) => stores[name]
     },
     patcher: {
@@ -193,7 +228,7 @@ const harness = createHarness();
 harness.plugin.onLoad();
 
 await new Promise(
-  (resolve) => setTimeout(resolve, 25)
+  (resolve) => setTimeout(resolve, 80)
 );
 
 assert.ok(
@@ -211,6 +246,29 @@ assert.ok(
 assert.ok(
   harness.calls.storeEmits.includes(
     "DraftStore"
+  )
+);
+
+assert.deepEqual(
+  harness.calls.nativeWake,
+  ["hide", "show"]
+);
+
+assert.ok(
+  harness.calls.logs.some(
+    (entry) =>
+      String(entry[1]).includes(
+        "autoMount:nativeWakeStart"
+      )
+  )
+);
+
+assert.ok(
+  harness.calls.logs.some(
+    (entry) =>
+      String(entry[1]).includes(
+        "autoMount:nativeWakeShow"
+      )
   )
 );
 

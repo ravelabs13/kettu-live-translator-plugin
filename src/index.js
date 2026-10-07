@@ -200,6 +200,7 @@ const manualBypass = /* @__PURE__ */ new Map();
 const pendingChannels = /* @__PURE__ */ new Set();
 const composerAutoMountTimers = [];
 let composerInjectionCount = 0;
+let composerNativeWakeAttempted = false;
 let unpatches = [];
 let runtimeStatus = "Not started";
 let d1LastComposerSignature = "";
@@ -362,6 +363,93 @@ function inspectNativeComposerHandle(attempt, id) {
   return handle;
 }
 
+function wakeNativeComposer(attempt, id, handle) {
+  if (composerNativeWakeAttempted) {
+    return false;
+  }
+
+  if (
+    !handle ||
+    typeof handle.hideSideActions !== "function" ||
+    typeof handle.showSideActions !== "function"
+  ) {
+    d1("autoMount:nativeWakeUnavailable", {
+      attempt,
+      id,
+      handleFound: Boolean(handle),
+      hideSideActions:
+        typeof handle?.hideSideActions,
+      showSideActions:
+        typeof handle?.showSideActions
+    });
+
+    return false;
+  }
+
+  composerNativeWakeAttempted = true;
+
+  const draftBefore =
+    DraftStore?.getDraft?.(id, 0) ?? "";
+
+  d1("autoMount:nativeWakeStart", {
+    attempt,
+    id,
+    draftLength: d1Length(draftBefore),
+    composerInjectionCount
+  });
+
+  try {
+    handle.hideSideActions();
+
+    d1("autoMount:nativeWakeHide", {
+      attempt,
+      id,
+      success: true
+    });
+
+    setTimeout(() => {
+      try {
+        handle.showSideActions();
+
+        const draftAfter =
+          DraftStore?.getDraft?.(id, 0) ?? "";
+
+        d1("autoMount:nativeWakeShow", {
+          attempt,
+          id,
+          success: true,
+          draftUnchanged:
+            draftBefore === draftAfter,
+          composerInjectionCount
+        });
+      } catch (error) {
+        d1("autoMount:nativeWakeShowError", {
+          attempt,
+          id,
+          message:
+            error instanceof Error
+              ? error.message
+              : String(error)
+        });
+      }
+    }, 40);
+
+    return true;
+  } catch (error) {
+    d1("autoMount:nativeWakeHideError", {
+      attempt,
+      id,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error)
+    });
+
+    composerNativeWakeAttempted = false;
+    return false;
+  }
+}
+
 function requestComposerAutoMount(attempt) {
   if (composerInjectionCount > 0) {
     d1("autoMount:alreadyInjected", {
@@ -383,9 +471,16 @@ function requestComposerAutoMount(attempt) {
     return;
   }
 
-  inspectNativeComposerHandle(
+  const nativeHandle =
+    inspectNativeComposerHandle(
+      attempt,
+      id
+    );
+
+  wakeNativeComposer(
     attempt,
-    id
+    id,
+    nativeHandle
   );
 
   const draftBefore =
@@ -1350,6 +1445,7 @@ var index = {
   onUnload() {
     clearComposerAutoMountTimers();
     composerInjectionCount = 0;
+    composerNativeWakeAttempted = false;
 
     for (const unpatch of unpatches.splice(0)) unpatch();
 
