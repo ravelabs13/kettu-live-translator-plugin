@@ -1,5 +1,5 @@
 {
-  "name": "kettu-polish-translator-plugin",
+  "name": "kettu-translate",
   "private": true,
   "scripts": {
     "build": "node build.mjs",

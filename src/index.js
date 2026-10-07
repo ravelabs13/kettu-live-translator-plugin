@@ -963,7 +963,7 @@ function patchComposerActions() {
           TranslateButton,
           {
             key:
-              "polish-outgoing-translator-direct",
+              "kettu-translate-direct",
             inputProps
           }
         )
@@ -1005,12 +1005,12 @@ function patchComposer() {
 
     if (
       !children ||
-      children.some((child) => child?.key === "polish-outgoing-translator")
+      children.some((child) => child?.key === "kettu-translate")
     ) return;
 
     children.unshift(
       common.React.createElement(TranslateButton, {
-        key: "polish-outgoing-translator",
+        key: "kettu-translate",
         inputProps
       })
     );
@@ -1336,11 +1336,11 @@ var index = {
       }
       runtimeStatus = active.length ? `Active: ${active.join(", ")}${failures.length ? `. Unavailable: ${failures.join(", ")}` : ""}` : "Enabled, but this Discord build exposed no compatible chat modules";
       try {
-        toasts.showToast(active.length ? "Polish Outgoing Translator enabled" : "Plugin enabled; open its settings for diagnostics");
+        toasts.showToast(active.length ? "Kettu Translate enabled" : "Plugin enabled; open its settings for diagnostics");
       } catch {
       }
       try {
-        _vendetta.logger.log(`Polish Outgoing Translator loaded. ${runtimeStatus}`);
+        _vendetta.logger.log(`Kettu Translate loaded. ${runtimeStatus}`);
       } catch {
       }
     } catch (error) {
@@ -1363,7 +1363,7 @@ var index = {
     manualBypass.clear();
     pendingChannels.clear();
 
-    _vendetta.logger.log("Polish Outgoing Translator unloaded");
+    _vendetta.logger.log("Kettu Translate unloaded");
   },
   settings: Settings
 };exports.default=index;Object.defineProperty(exports,'__esModule',{value:true});return exports;})({},vendetta,vendetta.metro,vendetta.metro.common,vendetta.plugin,vendetta.patcher,vendetta.storage,vendetta.utils,vendetta.ui.alerts,vendetta.ui.assets,vendetta.ui.components,vendetta.ui.toasts);
