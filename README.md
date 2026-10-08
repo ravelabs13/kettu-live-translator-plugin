@@ -132,7 +132,7 @@ Compatibility with unofficial forks, old Bunny/Vendetta builds or modified Kettu
 4. Tap `+`.
 5. Paste the Kettu Translate plugin URL:
 
-`https://raw.githubusercontent.com/ravelabs13/kettu-polish-translator-plugin/main/`
+`https://raw.githubusercontent.com/ravelabs13/kettu-live-translator-plugin/main/`
 
 6. Install and enable the plugin.
 7. Fully restart Discord.

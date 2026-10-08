@@ -131,7 +131,7 @@ Działanie na nieoficjalnych forkach, starszym Bunny/Vendetta lub zmodyfikowanyc
 4. Naciśnij `+`.
 5. Wklej adres Kettu Translate:
 
-`https://raw.githubusercontent.com/ravelabs13/kettu-polish-translator-plugin/main/`
+`https://raw.githubusercontent.com/ravelabs13/kettu-live-translator-plugin/main/`
 
 6. Zainstaluj i włącz plugin.
 7. Całkowicie uruchom ponownie Discorda.
